@@ -1,3 +1,5 @@
 /gw2
 *.test
 .superpowers/
+dist/
+npm/bin/

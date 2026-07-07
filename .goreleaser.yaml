@@ -1,0 +1,48 @@
+version: 2
+project_name: gw2
+builds:
+  - main: ./cmd/gw2
+    binary: gw2
+    env: [CGO_ENABLED=0]
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+archives:
+  - formats: [tar.gz]
+    name_template: 'gw2_{{ .Os }}_{{ .Arch }}'
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+changelog:
+  use: github-native
+release:
+  # Explicit owner/name: this repo has no git remote configured yet (no
+  # publish has happened), so goreleaser cannot infer the GitHub repo from
+  # origin. Repo name is the source identity (gldwrs2), not the gw2 binary.
+  github:
+    owner: howar31
+    name: gldwrs2
+  prerelease: auto
+homebrew_casks:
+  - repository:
+      owner: howar31
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
+    # Do not push the cask on prereleases (tags containing "-");
+    # otherwise goreleaser would overwrite the stable tap cask with the
+    # prerelease, since the npm-only guard in release.yml does not cover casks.
+    skip_upload: "auto"
+    description: Read-only Guild Wars 2 API command-line client.
+    homepage: https://github.com/howar31/gldwrs2
+    # The release binaries are unsigned; strip the quarantine attribute so
+    # macOS Gatekeeper does not block the installed binary.
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/gw2"]
+          end

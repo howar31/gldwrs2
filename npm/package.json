@@ -1,0 +1,54 @@
+{
+  "name": "@howar31/gw2",
+  "description": "Read-only Guild Wars 2 API command-line client.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "Howar31",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/howar31/gldwrs2.git"
+  },
+  "homepage": "https://github.com/howar31/gldwrs2",
+  "bugs": {
+    "url": "https://github.com/howar31/gldwrs2/issues"
+  },
+  "bin": {
+    "gw2": "run.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "preferUnplugged": true,
+  "keywords": [
+    "cli",
+    "guild-wars-2",
+    "gw2",
+    "agent",
+    "ai-agent",
+    "automation"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "supportedPlatforms": {
+    "darwin-arm64": {
+      "artifact": "gw2_darwin_arm64.tar.gz",
+      "binary": "gw2"
+    },
+    "darwin-x64": {
+      "artifact": "gw2_darwin_amd64.tar.gz",
+      "binary": "gw2"
+    },
+    "linux-arm64": {
+      "artifact": "gw2_linux_arm64.tar.gz",
+      "binary": "gw2"
+    },
+    "linux-x64": {
+      "artifact": "gw2_linux_amd64.tar.gz",
+      "binary": "gw2"
+    }
+  }
+}
