@@ -173,7 +173,7 @@ func chunkIDs(ids []string, size int) [][]string {
 	return out
 }
 
-// getWithHeader is like Get but also returns the X-Page-Total header value.
+// getWithPageTotal is like Get but also returns the X-Page-Total header value.
 func (c *Client) getWithPageTotal(ctx context.Context, path string, params url.Values) (json.RawMessage, int, error) {
 	if params == nil {
 		params = url.Values{}

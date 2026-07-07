@@ -70,6 +70,7 @@ func Root(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "gw2",
 		Short:         "Guild Wars 2 API command-line client",
+		Long:          "Guild Wars 2 API command-line client\n\nSource: github.com/howar31/gldwrs2",
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
