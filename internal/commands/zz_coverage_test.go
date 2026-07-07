@@ -40,6 +40,7 @@ func leafCommands() []string {
 	ids = append(ids, "pvp seasons leaderboards", "pvp games", "pvp standings", "pvp stats")
 	ids = append(ids, "achievements", "achievements categories", "achievements groups", "achievements daily", "achievements daily tomorrow")
 	ids = append(ids, "guild", "guild search", "guild permissions", "guild upgrades")
+	ids = append(ids, "build", "token info", "token subtoken")
 	sort.Strings(ids)
 	return ids
 }
