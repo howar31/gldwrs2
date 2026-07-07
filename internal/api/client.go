@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -170,4 +171,78 @@ func chunkIDs(ids []string, size int) [][]string {
 		out = append(out, ids[i:end])
 	}
 	return out
+}
+
+// getWithHeader is like Get but also returns the X-Page-Total header value.
+func (c *Client) getWithPageTotal(ctx context.Context, path string, params url.Values) (json.RawMessage, int, error) {
+	if params == nil {
+		params = url.Values{}
+	} else {
+		params = cloneValues(params)
+	}
+	if params.Get("v") == "" {
+		params.Set("v", SchemaVersion)
+	}
+	if params.Get("lang") == "" && c.lang != "" {
+		params.Set("lang", c.lang)
+	}
+	u := c.baseURL + path
+	if enc := params.Encode(); enc != "" {
+		u += "?" + enc
+	}
+	if c.limiter != nil {
+		if err := c.limiter.Wait(ctx); err != nil {
+			return nil, 0, err
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("User-Agent", c.userAgent)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	resp, err := c.httpc.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, 0, apiErrorFrom(resp.StatusCode, body)
+	}
+	total := 1
+	if v := resp.Header.Get("X-Page-Total"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			total = n
+		}
+	}
+	return json.RawMessage(body), total, nil
+}
+
+// GetAllPages walks every page (page_size 200) using X-Page-Total.
+func (c *Client) GetAllPages(ctx context.Context, path string, params url.Values) ([]json.RawMessage, error) {
+	base := url.Values{}
+	if params != nil {
+		base = cloneValues(params)
+	}
+	base.Set("page_size", "200")
+	var all []json.RawMessage
+	total := 1
+	for page := 0; page < total; page++ {
+		p := cloneValues(base)
+		p.Set("page", strconv.Itoa(page))
+		raw, t, err := c.getWithPageTotal(ctx, path, p)
+		if err != nil {
+			return nil, err
+		}
+		total = t
+		var batch []json.RawMessage
+		if err := json.Unmarshal(raw, &batch); err != nil {
+			return nil, err
+		}
+		all = append(all, batch...)
+	}
+	return all, nil
 }
