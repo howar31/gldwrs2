@@ -1,0 +1,210 @@
+// Package auth provides an encrypted credential store with named profiles.
+// API tokens are encrypted with AES-256-GCM before being persisted to
+// ~/.config/gw2/config.toml; the encryption key is stored separately.
+package auth
+
+import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+
+	"github.com/BurntSushi/toml"
+)
+
+type profile struct {
+	Enc   string `toml:"enc"`   // base64(nonce||ciphertext)
+	Order int    `toml:"order"` // set-order, for stable DefaultProfile
+}
+
+type config struct {
+	Default  string             `toml:"default"`
+	Profiles map[string]profile `toml:"profiles"`
+}
+
+// Store persists API keys encrypted with AES-256-GCM in <dir>/config.toml.
+type Store struct {
+	dir string
+	key []byte // 32 bytes
+}
+
+func NewStore(dir string, key []byte) *Store { return &Store{dir: dir, key: key} }
+
+func DefaultDir() (string, error) {
+	base, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "gw2"), nil
+}
+
+// LoadOrCreateKey returns the 32-byte encryption key, creating one at
+// <dir>/key (0600) on first use. GW2_KEYRING_BACKEND=file:<path> overrides.
+func LoadOrCreateKey(dir string) ([]byte, error) {
+	path := filepath.Join(dir, "key")
+	if b := os.Getenv("GW2_KEYRING_BACKEND"); len(b) > 5 && b[:5] == "file:" {
+		path = b[5:]
+	}
+	if data, err := os.ReadFile(path); err == nil {
+		if len(data) != 32 {
+			return nil, fmt.Errorf("key file %s is not 32 bytes", path)
+		}
+		return data, nil
+	}
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(path, key, 0o600); err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+func (s *Store) path() string { return filepath.Join(s.dir, "config.toml") }
+
+func (s *Store) load() (config, error) {
+	c := config{Profiles: map[string]profile{}}
+	data, err := os.ReadFile(s.path())
+	if errors.Is(err, os.ErrNotExist) {
+		return c, nil
+	}
+	if err != nil {
+		return c, err
+	}
+	if err := toml.Unmarshal(data, &c); err != nil {
+		return c, err
+	}
+	if c.Profiles == nil {
+		c.Profiles = map[string]profile{}
+	}
+	return c, nil
+}
+
+func (s *Store) save(c config) error {
+	if err := os.MkdirAll(s.dir, 0o700); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(s.path(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return toml.NewEncoder(f).Encode(c)
+}
+
+func (s *Store) gcm() (cipher.AEAD, error) {
+	block, err := aes.NewCipher(s.key)
+	if err != nil {
+		return nil, err
+	}
+	return cipher.NewGCM(block)
+}
+
+func (s *Store) Set(name, token string) error {
+	g, err := s.gcm()
+	if err != nil {
+		return err
+	}
+	nonce := make([]byte, g.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return err
+	}
+	ct := g.Seal(nonce, nonce, []byte(token), nil)
+	c, err := s.load()
+	if err != nil {
+		return err
+	}
+	order := len(c.Profiles)
+	if existing, ok := c.Profiles[name]; ok {
+		order = existing.Order
+	}
+	c.Profiles[name] = profile{Enc: base64.StdEncoding.EncodeToString(ct), Order: order}
+	if c.Default == "" {
+		c.Default = name
+	}
+	return s.save(c)
+}
+
+func (s *Store) Get(name string) (string, error) {
+	c, err := s.load()
+	if err != nil {
+		return "", err
+	}
+	p, ok := c.Profiles[name]
+	if !ok {
+		return "", fmt.Errorf("profile %q not found", name)
+	}
+	raw, err := base64.StdEncoding.DecodeString(p.Enc)
+	if err != nil {
+		return "", err
+	}
+	g, err := s.gcm()
+	if err != nil {
+		return "", err
+	}
+	ns := g.NonceSize()
+	if len(raw) < ns {
+		return "", errors.New("ciphertext too short")
+	}
+	pt, err := g.Open(nil, raw[:ns], raw[ns:], nil)
+	if err != nil {
+		return "", err
+	}
+	return string(pt), nil
+}
+
+func (s *Store) List() ([]string, error) {
+	c, err := s.load()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(c.Profiles))
+	for n := range c.Profiles {
+		names = append(names, n)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		return c.Profiles[names[i]].Order < c.Profiles[names[j]].Order
+	})
+	return names, nil
+}
+
+func (s *Store) Remove(name string) error {
+	c, err := s.load()
+	if err != nil {
+		return err
+	}
+	if _, ok := c.Profiles[name]; !ok {
+		return fmt.Errorf("profile %q not found", name)
+	}
+	delete(c.Profiles, name)
+	if c.Default == name {
+		c.Default = ""
+		best := int(^uint(0) >> 1)
+		for n, p := range c.Profiles {
+			if p.Order < best {
+				best, c.Default = p.Order, n
+			}
+		}
+	}
+	return s.save(c)
+}
+
+func (s *Store) DefaultProfile() (string, error) {
+	c, err := s.load()
+	if err != nil {
+		return "", err
+	}
+	if c.Default == "" {
+		return "", errors.New("no profiles configured")
+	}
+	return c.Default, nil
+}
