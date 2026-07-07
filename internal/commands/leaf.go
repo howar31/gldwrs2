@@ -80,3 +80,24 @@ func newByIDsListCmd(app *App, use, short, path, covID string, render func([]jso
 	c.Flags().BoolVar(&all, "all", false, "fetch every entry (explicit; may be large)")
 	return c
 }
+
+// newSimpleGetRunE builds a RunE for a plain public GET with no parameters
+// and no natural named-list concise form (pretty JSON fallback). Originally
+// written for wvw.go's "timers" group (three identical leaves); reused as-is
+// by achievements.go's "daily"/"daily tomorrow" rather than duplicating a
+// fourth and fifth copy of the same six lines.
+func newSimpleGetRunE(app *App, path, covID string) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		markCovered(covID)
+		ctx := context.Background()
+		client, err := app.client()
+		if err != nil {
+			return err
+		}
+		raw, err := client.Get(ctx, path, nil)
+		if err != nil {
+			return err
+		}
+		return output.Render(app.Out, raw, app.Mode, "")
+	}
+}

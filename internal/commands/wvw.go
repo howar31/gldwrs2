@@ -161,18 +161,18 @@ func newWvwTimersCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timers",
 		Short: "WvW map rotation and lockout timers",
-		RunE:  newWvwSimpleGetRunE(app, "/v2/wvw/timers", "wvw timers"),
+		RunE:  newSimpleGetRunE(app, "/v2/wvw/timers", "wvw timers"),
 	}
 	cmd.AddCommand(
 		&cobra.Command{
 			Use:   "lockout",
 			Short: "Fetch wvw timers lockout",
-			RunE:  newWvwSimpleGetRunE(app, "/v2/wvw/timers/lockout", "wvw timers lockout"),
+			RunE:  newSimpleGetRunE(app, "/v2/wvw/timers/lockout", "wvw timers lockout"),
 		},
 		&cobra.Command{
 			Use:   "teamAssignment",
 			Short: "Fetch wvw timers teamAssignment",
-			RunE:  newWvwSimpleGetRunE(app, "/v2/wvw/timers/teamAssignment", "wvw timers teamAssignment"),
+			RunE:  newSimpleGetRunE(app, "/v2/wvw/timers/teamAssignment", "wvw timers teamAssignment"),
 		},
 	)
 	return cmd
@@ -207,23 +207,4 @@ func newWvwGuildsCmd(app *App) *cobra.Command {
 	}
 	c.Flags().StringVar(&region, "region", "", "filter to one region (e.g. na, eu)")
 	return c
-}
-
-// newWvwSimpleGetRunE builds a RunE for a plain public GET with no
-// parameters and no natural named-list concise form (pretty JSON fallback).
-// Shared by all three "timers" leaves.
-func newWvwSimpleGetRunE(app *App, path, covID string) func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		markCovered(covID)
-		ctx := context.Background()
-		client, err := app.client()
-		if err != nil {
-			return err
-		}
-		raw, err := client.Get(ctx, path, nil)
-		if err != nil {
-			return err
-		}
-		return output.Render(app.Out, raw, app.Mode, "")
-	}
 }
