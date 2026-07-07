@@ -20,6 +20,7 @@ func leafCommands() []string {
 	for _, res := range catalogResources {
 		ids = append(ids, "data "+res.name)
 	}
+	ids = append(ids, "auth set", "auth list", "auth remove")
 	sort.Strings(ids)
 	return ids
 }

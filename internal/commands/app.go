@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -21,19 +22,30 @@ type App struct {
 	Limiter *api.Limiter
 }
 
-// client builds an api.Client for the current profile. A missing/empty
-// credential is fine for public endpoints (token stays empty).
+// client builds an api.Client for the current profile.
+//
+// If a.Profile is explicitly set and the lookup fails, that error is
+// returned (never falls back to anonymous) so a typo'd --profile doesn't
+// silently send an unauthenticated request. If a.Profile is empty, the
+// default profile (if any) is used; a decrypt/lookup error for an existing
+// default is propagated. If no default is configured, an empty token is
+// fine for public endpoints.
 func (a *App) client() (*api.Client, error) {
 	token := ""
 	if a.Store != nil {
-		name := a.Profile
-		if name == "" {
-			if def, err := a.Store.DefaultProfile(); err == nil {
-				name = def
+		switch {
+		case a.Profile != "":
+			tok, err := a.Store.Get(a.Profile)
+			if err != nil {
+				return nil, fmt.Errorf("profile %q: %w", a.Profile, err)
 			}
-		}
-		if name != "" {
-			if tok, err := a.Store.Get(name); err == nil {
+			token = tok
+		default:
+			if def, err := a.Store.DefaultProfile(); err == nil {
+				tok, err := a.Store.Get(def)
+				if err != nil {
+					return nil, fmt.Errorf("profile %q: %w", def, err)
+				}
 				token = tok
 			}
 		}
@@ -92,6 +104,6 @@ func Root(version string) *cobra.Command {
 	root.PersistentFlags().BoolVar(&raw, "raw", false, "print the API's raw JSON")
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "print pretty JSON")
 
-	root.AddCommand(newDataCmd(app))
+	root.AddCommand(newDataCmd(app), newAuthCmd(app))
 	return root
 }
