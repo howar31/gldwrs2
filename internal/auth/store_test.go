@@ -73,3 +73,82 @@ func readFile(t *testing.T, p string) string {
 	return string(b)
 }
 func contains(hay, needle string) bool { return strings.Contains(hay, needle) }
+
+func TestDefaultDirHonorsXDG(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	got, err := DefaultDir()
+	if err != nil {
+		t.Fatalf("DefaultDir: %v", err)
+	}
+	want := filepath.Join(tmp, "gw2")
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+
+	t.Setenv("XDG_CONFIG_HOME", "")
+	got, err = DefaultDir()
+	if err != nil {
+		t.Fatalf("DefaultDir: %v", err)
+	}
+	if !strings.HasSuffix(got, string(filepath.Separator)+filepath.Join(".config", "gw2")) {
+		t.Fatalf("got %q, want suffix /.config/gw2", got)
+	}
+}
+
+func TestShortKeyRejected(t *testing.T) {
+	s := NewStore(t.TempDir(), make([]byte, 16))
+	if err := s.Set("x", "y"); err == nil {
+		t.Fatal("expected error for short key, got nil")
+	}
+}
+
+func TestOrderStableAfterRemoveAndReAdd(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.Set("a", "ka"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set("b", "kb"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set("c", "kc"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Remove("b"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set("d", "kd"); err != nil {
+		t.Fatal(err)
+	}
+	names, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"a", "c", "d"}
+	if len(names) != len(want) {
+		t.Fatalf("names = %v, want %v", names, want)
+	}
+	for i := range want {
+		if names[i] != want[i] {
+			t.Fatalf("names = %v, want %v", names, want)
+		}
+	}
+	def, err := s.DefaultProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def != "a" {
+		t.Fatalf("default = %q, want %q", def, "a")
+	}
+
+	if err := s.Remove("a"); err != nil {
+		t.Fatal(err)
+	}
+	def, err = s.DefaultProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def != "c" {
+		t.Fatalf("default after removing a = %q, want %q", def, "c")
+	}
+}

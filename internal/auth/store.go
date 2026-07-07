@@ -35,12 +35,18 @@ type Store struct {
 
 func NewStore(dir string, key []byte) *Store { return &Store{dir: dir, key: key} }
 
+// DefaultDir returns the default config directory for gw2, following the
+// project's XDG convention (~/.config/gw2), not the platform-native config
+// dir (e.g. macOS's ~/Library/Application Support).
 func DefaultDir() (string, error) {
-	base, err := os.UserConfigDir()
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "gw2"), nil
+	}
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(base, "gw2"), nil
+	return filepath.Join(home, ".config", "gw2"), nil
 }
 
 // LoadOrCreateKey returns the 32-byte encryption key, creating one at
@@ -89,24 +95,61 @@ func (s *Store) load() (config, error) {
 	return c, nil
 }
 
+// save writes c to disk atomically: it encodes into a temp file in the same
+// directory, then renames it over config.toml. This avoids leaving a
+// truncated/corrupt config.toml if the process is interrupted mid-write.
 func (s *Store) save(c config) error {
 	if err := os.MkdirAll(s.dir, 0o700); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(s.path(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	tmp, err := os.CreateTemp(s.dir, "config-*.toml.tmp")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return toml.NewEncoder(f).Encode(c)
+	tmpPath := tmp.Name()
+	if err := toml.NewEncoder(tmp).Encode(c); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Chmod(tmpPath, 0o600); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, s.path()); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }
 
 func (s *Store) gcm() (cipher.AEAD, error) {
+	if len(s.key) != 32 {
+		return nil, fmt.Errorf("encryption key must be 32 bytes for AES-256, got %d", len(s.key))
+	}
 	block, err := aes.NewCipher(s.key)
 	if err != nil {
 		return nil, err
 	}
 	return cipher.NewGCM(block)
+}
+
+// maxOrder returns the highest Order value among profiles, or -1 if empty.
+// New profiles get maxOrder+1 so Order stays monotonically increasing even
+// after a Remove+Set cycle (avoiding collisions that len(c.Profiles) would
+// produce).
+func maxOrder(profiles map[string]profile) int {
+	max := -1
+	for _, p := range profiles {
+		if p.Order > max {
+			max = p.Order
+		}
+	}
+	return max
 }
 
 func (s *Store) Set(name, token string) error {
@@ -123,7 +166,7 @@ func (s *Store) Set(name, token string) error {
 	if err != nil {
 		return err
 	}
-	order := len(c.Profiles)
+	order := maxOrder(c.Profiles) + 1
 	if existing, ok := c.Profiles[name]; ok {
 		order = existing.Order
 	}
