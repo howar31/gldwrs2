@@ -133,3 +133,41 @@ func cloneValues(v url.Values) url.Values {
 	}
 	return out
 }
+
+// GetByIDs fetches multiple resources, chunking ids at MaxIDsPerRequest and
+// merging the returned arrays.
+func (c *Client) GetByIDs(ctx context.Context, path string, ids []string, params url.Values) ([]json.RawMessage, error) {
+	var all []json.RawMessage
+	for _, chunk := range chunkIDs(ids, MaxIDsPerRequest) {
+		p := url.Values{}
+		if params != nil {
+			p = cloneValues(params)
+		}
+		p.Set("ids", strings.Join(chunk, ","))
+		raw, err := c.Get(ctx, path, p)
+		if err != nil {
+			return nil, err
+		}
+		var batch []json.RawMessage
+		if err := json.Unmarshal(raw, &batch); err != nil {
+			return nil, err
+		}
+		all = append(all, batch...)
+	}
+	return all, nil
+}
+
+func chunkIDs(ids []string, size int) [][]string {
+	if size <= 0 {
+		size = MaxIDsPerRequest
+	}
+	var out [][]string
+	for i := 0; i < len(ids); i += size {
+		end := i + size
+		if end > len(ids) {
+			end = len(ids)
+		}
+		out = append(out, ids[i:end])
+	}
+	return out
+}
