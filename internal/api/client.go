@@ -134,19 +134,9 @@ func cloneValues(v url.Values) url.Values {
 	return out
 }
 
-// --- Task 2 temporary stubs -------------------------------------------------
-// The two symbols below close gaps left by interfaces that later tasks own.
-// Each is clearly marked and expected to be replaced, not extended.
-
-// temporary; replaced by errors.go in Task 3
-func apiErrorFrom(code int, body []byte) error { return &tmpErr{code, string(body)} }
-
-type tmpErr struct {
-	code int
-	body string
-}
-
-func (e *tmpErr) Error() string { return e.body }
+// --- Task 2 temporary stub ---------------------------------------------------
+// The symbol below closes a gap left by an interface a later task owns.
+// It is clearly marked and expected to be replaced, not extended.
 
 // temporary; replaced by limiter.go in Task 4
 type Limiter struct{}
