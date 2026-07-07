@@ -58,62 +58,13 @@ func newWvwCmd(app *App) *cobra.Command {
 	return cmd
 }
 
-// newWvwListLeafCmd mirrors newCatalogResourceCmd's (data.go) bare/--ids/--all
-// branch for one of the five wvw list resources; see wvwListResource's doc
-// comment for why this isn't reused directly.
+// newWvwListLeafCmd delegates to the shared by-ids leaf helper (leaf.go),
+// which reproduces newCatalogResourceCmd's (data.go) bare/--ids/--all
+// branch; see wvwListResource's doc comment for why these five resources
+// live here rather than in data.go's catalogResources.
 func newWvwListLeafCmd(app *App, res wvwListResource) *cobra.Command {
 	covID := "wvw " + res.name
-	var ids string
-	var all bool
-	c := &cobra.Command{
-		Use:   res.name,
-		Short: "Fetch " + covID,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			markCovered(covID)
-			ctx := context.Background()
-			client, err := app.client()
-			if err != nil {
-				return err
-			}
-			// No ids and not --all: show the id list only (never auto-dump).
-			if ids == "" && !all {
-				raw, err := client.Get(ctx, res.path, nil)
-				if err != nil {
-					return err
-				}
-				return output.Render(app.Out, raw, app.Mode, conciseIDList(raw))
-			}
-			var idList []string
-			if all {
-				raw, err := client.Get(ctx, res.path, nil)
-				if err != nil {
-					return err
-				}
-				var nums []json.RawMessage
-				if err := json.Unmarshal(raw, &nums); err != nil {
-					return err
-				}
-				for _, n := range nums {
-					idList = append(idList, strings.Trim(string(n), `"`))
-				}
-			} else {
-				idList = strings.Split(ids, ",")
-			}
-			items, err := client.GetByIDs(ctx, res.path, idList, nil)
-			if err != nil {
-				return err
-			}
-			concise := ""
-			if res.render != nil {
-				concise = res.render(items)
-			}
-			merged, _ := json.Marshal(items)
-			return output.Render(app.Out, merged, app.Mode, concise)
-		},
-	}
-	c.Flags().StringVar(&ids, "ids", "", "comma-separated ids (omit to list ids)")
-	c.Flags().BoolVar(&all, "all", false, "fetch every entry (explicit; may be large)")
-	return c
+	return newByIDsListCmd(app, res.name, "Fetch "+covID, res.path, covID, res.render, false)
 }
 
 // newWvwMatchesCmd builds "matches" and its three sub-resources (overview,
