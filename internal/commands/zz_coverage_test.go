@@ -28,6 +28,12 @@ func leafCommands() []string {
 	}
 	ids = append(ids, "character")
 	ids = append(ids, "commerce prices", "commerce listings", "commerce exchange coins", "commerce exchange gems", "commerce transactions", "commerce delivery")
+	for _, res := range wvwListResources {
+		ids = append(ids, "wvw "+res.name)
+	}
+	ids = append(ids, "wvw matches", "wvw matches overview", "wvw matches scores", "wvw matches stats")
+	ids = append(ids, "wvw timers", "wvw timers lockout", "wvw timers teamAssignment")
+	ids = append(ids, "wvw guilds")
 	sort.Strings(ids)
 	return ids
 }
