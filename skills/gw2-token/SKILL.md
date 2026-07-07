@@ -1,6 +1,6 @@
 ---
 name: gw2-token
-description: API key info and subtokens
+description: "API key info and subtokens"
 ---
 
 # gw2-token

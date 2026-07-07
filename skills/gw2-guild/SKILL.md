@@ -1,6 +1,6 @@
 ---
 name: gw2-guild
-description: Guild info, roster, and treasury
+description: "Guild info, roster, and treasury"
 ---
 
 # gw2-guild

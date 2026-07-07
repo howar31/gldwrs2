@@ -1,6 +1,6 @@
 ---
 name: gw2-wvw
-description: World vs World matches, objectives, and rankings
+description: "World vs World matches, objectives, and rankings"
 ---
 
 # gw2-wvw

@@ -1,6 +1,6 @@
 ---
 name: gw2-pvp
-description: PvP stats, seasons, and reward tracks
+description: "PvP stats, seasons, and reward tracks"
 ---
 
 # gw2-pvp

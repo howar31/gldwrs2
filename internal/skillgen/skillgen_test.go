@@ -82,7 +82,7 @@ func TestGenerateProducesGroupSkills(t *testing.T) {
 	if !strings.Contains(alphaBody, "name: gw2-alpha\n") {
 		t.Errorf("gw2-alpha/SKILL.md missing frontmatter name, got:\n%s", alphaBody)
 	}
-	if !strings.Contains(alphaBody, "description: Alpha group") {
+	if !strings.Contains(alphaBody, `description: "Alpha group"`) {
 		t.Errorf("gw2-alpha/SKILL.md missing frontmatter description, got:\n%s", alphaBody)
 	}
 	if !strings.Contains(alphaBody, "gw2 alpha leaf1") {
@@ -149,5 +149,65 @@ func TestGenerateDeterministic(t *testing.T) {
 		if !bytes.Equal(a, b) {
 			t.Errorf("%s differs between the two runs", rel)
 		}
+	}
+}
+
+// descriptionValue returns the text after "description:" on the frontmatter
+// line of body that starts with that prefix. Every SKILL.md this package
+// generates has exactly one such line, always a single-line scalar.
+func descriptionValue(t *testing.T, body string) string {
+	t.Helper()
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "description:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "description:"))
+		}
+	}
+	t.Fatalf("no description: line found in body:\n%s", body)
+	return ""
+}
+
+// TestDescriptionsAreValidQuotedYAML is an anti-regression test for the bug
+// where an unquoted description containing a ": " sequence (e.g.
+// gw2-shared's real description, "Shared gw2 CLI conventions: auth, global
+// flags, output modes, exit codes.") produced invalid YAML frontmatter --
+// an unquoted YAML plain scalar cannot contain ": ". It builds a fake group
+// whose Short deliberately contains a colon, generates the tree, and asserts
+// every emitted description: value is a properly quoted YAML double-quoted
+// scalar (wrapped in literal double quotes), including gw2-shared's own
+// fixed, colon-bearing description.
+func TestDescriptionsAreValidQuotedYAML(t *testing.T) {
+	root := &cobra.Command{Use: "gw2"}
+	gamma := &cobra.Command{Use: "gamma", Short: "Trading post: prices and more"}
+	gamma.AddCommand(&cobra.Command{
+		Use:   "leaf3",
+		Short: "Gamma leaf three",
+		RunE:  func(*cobra.Command, []string) error { return nil },
+	})
+	root.AddCommand(gamma)
+
+	dir := t.TempDir()
+	if err := skillgen.Generate(root, "9.9.9", dir); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+
+	assertQuoted := func(path string) string {
+		t.Helper()
+		desc := descriptionValue(t, readFile(t, path))
+		if !strings.HasPrefix(desc, `"`) || !strings.HasSuffix(desc, `"`) || len(desc) < 2 {
+			t.Errorf("%s: description value is not a quoted YAML scalar: %q", path, desc)
+		}
+		return desc
+	}
+
+	assertQuoted(filepath.Join(dir, "gw2", "SKILL.md"))
+
+	sharedDesc := assertQuoted(filepath.Join(dir, "gw2-shared", "SKILL.md"))
+	if !strings.Contains(sharedDesc, "conventions: auth") {
+		t.Errorf("gw2-shared description should still contain its colon-bearing text (now safely quoted), got: %q", sharedDesc)
+	}
+
+	gammaDesc := assertQuoted(filepath.Join(dir, "gw2-gamma", "SKILL.md"))
+	if want := `"Trading post: prices and more"`; gammaDesc != want {
+		t.Errorf("gw2-gamma description = %q, want %q", gammaDesc, want)
 	}
 }

@@ -1,6 +1,6 @@
 ---
 name: gw2-character
-description: Your characters and their details
+description: "Your characters and their details"
 ---
 
 # gw2-character

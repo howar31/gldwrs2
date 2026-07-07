@@ -1,6 +1,6 @@
 ---
 name: gw2-achievements
-description: Achievements, categories, groups, and dailies
+description: "Achievements, categories, groups, and dailies"
 ---
 
 # gw2-achievements

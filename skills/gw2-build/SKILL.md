@@ -1,6 +1,6 @@
 ---
 name: gw2-build
-description: Current game build id
+description: "Current game build id"
 ---
 
 # gw2-build

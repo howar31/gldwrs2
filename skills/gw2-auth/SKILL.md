@@ -1,6 +1,6 @@
 ---
 name: gw2-auth
-description: Manage stored API keys
+description: "Manage stored API keys"
 ---
 
 # gw2-auth

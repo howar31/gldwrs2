@@ -1,6 +1,6 @@
 ---
 name: gw2-data
-description: Static game data (items, colors, recipes, ...)
+description: "Static game data (items, colors, recipes, ...)"
 ---
 
 # gw2-data

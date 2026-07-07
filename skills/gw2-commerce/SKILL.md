@@ -1,6 +1,6 @@
 ---
 name: gw2-commerce
-description: Trading post prices, listings, and your orders
+description: "Trading post prices, listings, and your orders"
 ---
 
 # gw2-commerce

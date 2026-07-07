@@ -1,6 +1,6 @@
 ---
 name: gw2-account
-description: Your account assets and unlocks
+description: "Your account assets and unlocks"
 ---
 
 # gw2-account

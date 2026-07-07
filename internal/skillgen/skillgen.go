@@ -124,13 +124,29 @@ func writeSkill(outDir, name, body string) error {
 	return os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(body), 0o644)
 }
 
-// indexFrontmatter is the fixed frontmatter for gw2/SKILL.md, given verbatim
-// by the design brief.
-const indexFrontmatter = `---
-name: gw2
-description: Guild Wars 2 API CLI — read-only client for accounts, trading post, WvW, PvP, guilds, and game data. Index of gw2-* skills.
----
-`
+// yamlString returns s as a safely-quoted YAML double-quoted scalar: wrapped
+// in double quotes, with embedded backslashes and double quotes escaped.
+// These two escapes are sufficient to make any single-line text (including
+// text containing a ": " sequence, which breaks an unquoted YAML plain
+// scalar) a valid YAML double-quoted scalar. Every frontmatter
+// `description:` value goes through this helper -- descriptions are derived
+// from command `Short` text, which is free-form and not guaranteed to avoid
+// YAML-special sequences.
+func yamlString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	return `"` + s + `"`
+}
+
+// indexDescription is the fixed description text for gw2/SKILL.md, given
+// verbatim by the design brief.
+const indexDescription = "Guild Wars 2 API CLI — read-only client for accounts, trading post, WvW, PvP, guilds, and game data. Index of gw2-* skills."
+
+// indexFrontmatter builds the fixed frontmatter for gw2/SKILL.md, given
+// verbatim by the design brief (description safely quoted via yamlString).
+func indexFrontmatter() string {
+	return fmt.Sprintf("---\nname: gw2\ndescription: %s\n---\n", yamlString(indexDescription))
+}
 
 // indexBody builds the gw2/SKILL.md content: the fixed frontmatter above, a
 // one-paragraph overview noting the CLI version, a bullet list of every
@@ -138,7 +154,7 @@ description: Guild Wars 2 API CLI — read-only client for accounts, trading pos
 // gw2-shared.
 func indexBody(version string, groups []group) string {
 	var b strings.Builder
-	b.WriteString(indexFrontmatter)
+	b.WriteString(indexFrontmatter())
 	fmt.Fprintf(&b, "\n# gw2 (v%s)\n\n", version)
 	b.WriteString("Guild Wars 2 API CLI: a read-only command-line client for the official GW2\n")
 	b.WriteString("API, covering account assets and unlocks, characters, the trading post,\n")
@@ -153,13 +169,18 @@ func indexBody(version string, groups []group) string {
 	return b.String()
 }
 
-// sharedFrontmatter is the fixed frontmatter for gw2-shared/SKILL.md, given
-// verbatim by the design brief.
-const sharedFrontmatter = `---
-name: gw2-shared
-description: Shared gw2 CLI conventions: auth, global flags, output modes, exit codes.
----
-`
+// sharedDescription is the fixed description text for gw2-shared/SKILL.md,
+// given verbatim by the design brief. It contains a ": " sequence, which is
+// exactly why yamlString's quoting matters: emitted unquoted, this text
+// breaks YAML parsing.
+const sharedDescription = "Shared gw2 CLI conventions: auth, global flags, output modes, exit codes."
+
+// sharedFrontmatter builds the fixed frontmatter for gw2-shared/SKILL.md,
+// given verbatim by the design brief (description safely quoted via
+// yamlString).
+func sharedFrontmatter() string {
+	return fmt.Sprintf("---\nname: gw2-shared\ndescription: %s\n---\n", yamlString(sharedDescription))
+}
 
 // sharedBody builds the gw2-shared/SKILL.md content: static conventions
 // text (verified against internal/commands/app.go, internal/auth/store.go,
@@ -167,7 +188,7 @@ description: Shared gw2 CLI conventions: auth, global flags, output modes, exit 
 // below stay accurate) plus the current CLI version.
 func sharedBody(version string) string {
 	var b strings.Builder
-	b.WriteString(sharedFrontmatter)
+	b.WriteString(sharedFrontmatter())
 	fmt.Fprintf(&b, "\n# gw2-shared (v%s)\n\n", version)
 	b.WriteString("Conventions shared by every gw2 command.\n\n")
 
@@ -219,7 +240,7 @@ func sharedBody(version string) string {
 // commands (full path, local flags, and Short).
 func groupBody(g group) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "---\nname: gw2-%s\ndescription: %s\n---\n\n", g.name, g.short)
+	fmt.Fprintf(&b, "---\nname: gw2-%s\ndescription: %s\n---\n\n", g.name, yamlString(g.short))
 	fmt.Fprintf(&b, "# gw2-%s\n\n", g.name)
 	fmt.Fprintf(&b, "Commands under `gw2 %s`.\n\n## Commands\n\n", g.name)
 	for _, l := range g.leaves {
