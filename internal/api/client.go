@@ -133,12 +133,3 @@ func cloneValues(v url.Values) url.Values {
 	}
 	return out
 }
-
-// --- Task 2 temporary stub ---------------------------------------------------
-// The symbol below closes a gap left by an interface a later task owns.
-// It is clearly marked and expected to be replaced, not extended.
-
-// temporary; replaced by limiter.go in Task 4
-type Limiter struct{}
-
-func (l *Limiter) Wait(ctx context.Context) error { return nil }
