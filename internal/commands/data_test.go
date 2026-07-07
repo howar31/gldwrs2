@@ -60,3 +60,42 @@ func TestDataBareResourceDoesNotDumpAll(t *testing.T) {
 		t.Fatalf("expected id list, got %q", out.String())
 	}
 }
+
+// TestAllCatalogResourcesFetch is a table-driven test that exercises every
+// registered catalogResource leaf (bare "data <segments...> --ids 1", or
+// "--input 1" for recipes search), asserting the command dispatches to the
+// right leaf without error and produces non-empty output. This is what
+// keeps the coverage meta-test (zz_coverage_test.go) green as the registry
+// grows: every resource is fetched here exactly once.
+func TestAllCatalogResourcesFetch(t *testing.T) {
+	for _, res := range catalogResources {
+		res := res
+		name := strings.Join(res.segments, " ")
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(`[{"id":1,"name":"Test"}]`))
+			}))
+			defer srv.Close()
+
+			var out bytes.Buffer
+			app := &App{Out: &out, BaseURL: srv.URL, Lang: "en", Mode: output.ModeConcise, Limiter: api.NewLimiter(300, 5)}
+			root := &cobra.Command{Use: "gw2"}
+			root.AddCommand(newDataCmd(app))
+
+			args := append([]string{"data"}, res.segments...)
+			isRecipesSearch := len(res.segments) == 2 && res.segments[0] == "recipes" && res.segments[1] == "search"
+			if isRecipesSearch {
+				args = append(args, "--input", "1")
+			} else {
+				args = append(args, "--ids", "1")
+			}
+			root.SetArgs(args)
+			if err := root.Execute(); err != nil {
+				t.Fatalf("execute %v: %v", args, err)
+			}
+			if out.String() == "" {
+				t.Fatalf("expected non-empty output for %q", name)
+			}
+		})
+	}
+}

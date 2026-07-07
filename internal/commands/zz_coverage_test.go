@@ -2,6 +2,7 @@ package commands
 
 import (
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -18,7 +19,7 @@ func init() { markCovered = func(id string) { coverMu.Lock(); coverSeen[id] = tr
 func leafCommands() []string {
 	var ids []string
 	for _, res := range catalogResources {
-		ids = append(ids, "data "+res.name)
+		ids = append(ids, "data "+strings.Join(res.segments, " "))
 	}
 	ids = append(ids, "auth set", "auth list", "auth remove")
 	sort.Strings(ids)
