@@ -132,6 +132,6 @@ func Root(version string) *cobra.Command {
 	root.PersistentFlags().BoolVar(&raw, "raw", false, "print the API's raw JSON")
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "print pretty JSON")
 
-	root.AddCommand(newDataCmd(app), newAuthCmd(app), newAccountCmd(app), newCharacterCmd(app))
+	root.AddCommand(newDataCmd(app), newAuthCmd(app), newAccountCmd(app), newCharacterCmd(app), newCommerceCmd(app))
 	return root
 }

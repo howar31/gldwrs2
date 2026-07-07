@@ -27,6 +27,7 @@ func leafCommands() []string {
 		ids = append(ids, "account "+strings.Join(res.segments, " "))
 	}
 	ids = append(ids, "character")
+	ids = append(ids, "commerce prices", "commerce listings", "commerce exchange coins", "commerce exchange gems", "commerce transactions", "commerce delivery")
 	sort.Strings(ids)
 	return ids
 }
