@@ -164,33 +164,12 @@ func newDataCmd(app *App) *cobra.Command {
 
 // addCatalogResource walks res.segments from root, creating intermediate
 // group commands as needed (reusing one already created for a sibling
-// resource), and attaches the leaf command at the final segment.
+// resource), and attaches the leaf command at the final segment. See
+// addToTree (tree.go) for the shared traversal, also used by account.go.
 func addCatalogResource(root *cobra.Command, app *App, res catalogResource) {
-	cur := root
-	for i, seg := range res.segments {
-		if i == len(res.segments)-1 {
-			cur.AddCommand(newCatalogLeafCmd(app, res, seg))
-			return
-		}
-		child := findSubcommand(cur, seg)
-		if child == nil {
-			child = &cobra.Command{
-				Use:   seg,
-				Short: "Subcommands for " + seg,
-			}
-			cur.AddCommand(child)
-		}
-		cur = child
-	}
-}
-
-func findSubcommand(parent *cobra.Command, use string) *cobra.Command {
-	for _, c := range parent.Commands() {
-		if c.Name() == use {
-			return c
-		}
-	}
-	return nil
+	addToTree(root, res.segments, func(seg string) *cobra.Command {
+		return newCatalogLeafCmd(app, res, seg)
+	})
 }
 
 func newCatalogLeafCmd(app *App, res catalogResource, use string) *cobra.Command {

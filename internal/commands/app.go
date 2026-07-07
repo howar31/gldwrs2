@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,41 +23,67 @@ type App struct {
 	Limiter *api.Limiter
 }
 
-// client builds an api.Client for the current profile.
+// resolveToken resolves the API token for the current profile.
 //
 // If a.Profile is explicitly set and the lookup fails, that error is
 // returned (never falls back to anonymous) so a typo'd --profile doesn't
 // silently send an unauthenticated request. If a.Profile is empty, the
 // default profile (if any) is used; a decrypt/lookup error for an existing
 // default is propagated. If no default is configured, an empty token is
-// fine for public endpoints.
-func (a *App) client() (*api.Client, error) {
-	token := ""
-	if a.Store != nil {
-		switch {
-		case a.Profile != "":
-			tok, err := a.Store.Get(a.Profile)
-			if err != nil {
-				return nil, fmt.Errorf("profile %q: %w", a.Profile, err)
-			}
-			token = tok
-		default:
-			if def, err := a.Store.DefaultProfile(); err == nil {
-				tok, err := a.Store.Get(def)
-				if err != nil {
-					return nil, fmt.Errorf("profile %q: %w", def, err)
-				}
-				token = tok
-			}
-		}
+// returned (fine for public endpoints; authedClient rejects it).
+func (a *App) resolveToken() (string, error) {
+	if a.Store == nil {
+		return "", nil
 	}
+	if a.Profile != "" {
+		tok, err := a.Store.Get(a.Profile)
+		if err != nil {
+			return "", fmt.Errorf("profile %q: %w", a.Profile, err)
+		}
+		return tok, nil
+	}
+	if def, err := a.Store.DefaultProfile(); err == nil {
+		tok, err := a.Store.Get(def)
+		if err != nil {
+			return "", fmt.Errorf("profile %q: %w", def, err)
+		}
+		return tok, nil
+	}
+	return "", nil
+}
+
+func (a *App) newClient(token string) *api.Client {
 	return api.New(
 		api.WithBaseURL(a.BaseURL),
 		api.WithToken(token),
 		api.WithLang(a.Lang),
 		api.WithLimiter(a.Limiter),
 		api.WithUserAgent("gw2-cli/"+versionOrDev),
-	), nil
+	)
+}
+
+// client builds an api.Client for the current profile. An empty (anonymous)
+// token is fine here -- this is used by public data endpoints.
+func (a *App) client() (*api.Client, error) {
+	token, err := a.resolveToken()
+	if err != nil {
+		return nil, err
+	}
+	return a.newClient(token), nil
+}
+
+// authedClient is like client, but requires a non-empty token: it's used by
+// authenticated /v2/account/* (and similar) endpoints that would otherwise
+// fail with an opaque 401/403 from the API. Errors clearly up front instead.
+func (a *App) authedClient() (*api.Client, error) {
+	token, err := a.resolveToken()
+	if err != nil {
+		return nil, err
+	}
+	if token == "" {
+		return nil, errors.New("this command needs an API key; run: gw2 auth set <name> --key <key>")
+	}
+	return a.newClient(token), nil
 }
 
 var versionOrDev = "dev"
@@ -105,6 +132,6 @@ func Root(version string) *cobra.Command {
 	root.PersistentFlags().BoolVar(&raw, "raw", false, "print the API's raw JSON")
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "print pretty JSON")
 
-	root.AddCommand(newDataCmd(app), newAuthCmd(app))
+	root.AddCommand(newDataCmd(app), newAuthCmd(app), newAccountCmd(app))
 	return root
 }

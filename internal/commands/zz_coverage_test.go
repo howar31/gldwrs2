@@ -22,6 +22,10 @@ func leafCommands() []string {
 		ids = append(ids, "data "+strings.Join(res.segments, " "))
 	}
 	ids = append(ids, "auth set", "auth list", "auth remove")
+	ids = append(ids, "account")
+	for _, res := range accountResources {
+		ids = append(ids, "account "+strings.Join(res.segments, " "))
+	}
 	sort.Strings(ids)
 	return ids
 }
