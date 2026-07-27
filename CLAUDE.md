@@ -17,6 +17,7 @@ This file is index-only; do not duplicate SPEC.md content here.
 go build -o gw2 ./cmd/gw2                   # version comes from the committed VERSION file
 go test ./...                               # includes the command-coverage meta-test
 go run ./cmd/gw2 generate-skills            # regenerate skills/ after any command change
+scripts/smoke.sh                            # live smoke vs the real API (authed part needs a stored profile)
 goreleaser check                            # validate .goreleaser.yaml (no network/publish)
 goreleaser release --snapshot --clean       # local dry-run only, never plain `release`
 ```
