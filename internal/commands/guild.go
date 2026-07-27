@@ -114,8 +114,8 @@ func newGuildCmd(app *App) *cobra.Command {
 
 	cmd.AddCommand(
 		newGuildSearchCmd(app),
-		newByIDsListCmd(app, "permissions", "Fetch guild permissions", "/v2/guild/permissions", "guild permissions", renderNamed, false),
-		newByIDsListCmd(app, "upgrades", "Fetch guild upgrades", "/v2/guild/upgrades", "guild upgrades", renderNamed, false),
+		newByIDsListCmd(app, "permissions", "Fetch guild permissions", "/v2/guild/permissions", "guild permissions", renderNamed, false, false),
+		newByIDsListCmd(app, "upgrades", "Fetch guild upgrades", "/v2/guild/upgrades", "guild upgrades", renderNamed, false, false),
 	)
 	return cmd
 }

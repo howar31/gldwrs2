@@ -19,7 +19,11 @@ func newAuthCmd(app *App) *cobra.Command {
 			if key == "" {
 				return fmt.Errorf("--key is required")
 			}
-			if err := app.Store.Set(args[0], key); err != nil {
+			st, err := app.requireStore()
+			if err != nil {
+				return err
+			}
+			if err := st.Set(args[0], key); err != nil {
 				return err
 			}
 			fmt.Fprintf(app.Out, "stored key for profile %q\n", args[0])
@@ -33,11 +37,15 @@ func newAuthCmd(app *App) *cobra.Command {
 		Short: "List stored profiles (never prints keys)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered("auth list")
-			names, err := app.Store.List()
+			st, err := app.requireStore()
 			if err != nil {
 				return err
 			}
-			def, _ := app.Store.DefaultProfile()
+			names, err := st.List()
+			if err != nil {
+				return err
+			}
+			def, _ := st.DefaultProfile()
 			for _, n := range names {
 				marker := ""
 				if n == def {
@@ -55,7 +63,11 @@ func newAuthCmd(app *App) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered("auth remove")
-			if err := app.Store.Remove(args[0]); err != nil {
+			st, err := app.requireStore()
+			if err != nil {
+				return err
+			}
+			if err := st.Remove(args[0]); err != nil {
 				return err
 			}
 			fmt.Fprintf(app.Out, "removed profile %q\n", args[0])

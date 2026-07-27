@@ -15,11 +15,6 @@ const (
 	ModeJSON
 )
 
-// Conciser is implemented by response types that render a compact form.
-type Conciser interface {
-	Concise() string
-}
-
 // Render writes raw JSON in the chosen mode. In ModeConcise, the pre-rendered
 // concise string is used; an empty concise falls back to pretty JSON.
 func Render(w io.Writer, raw json.RawMessage, mode Mode, concise string) error {

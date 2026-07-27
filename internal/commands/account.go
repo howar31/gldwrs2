@@ -86,6 +86,7 @@ func newAccountCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "account",
 		Short: "Your account assets and unlocks",
+		Args:  cobra.NoArgs,
 		RunE:  accountLeafRunE(app, "/v2/account", "account", renderAccount),
 	}
 	for _, res := range accountResources {
@@ -101,6 +102,7 @@ func newAccountLeafCmd(app *App, res accountResource, use string) *cobra.Command
 	return &cobra.Command{
 		Use:   use,
 		Short: "Fetch " + covID,
+		Args:  cobra.NoArgs,
 		RunE:  accountLeafRunE(app, res.path, covID, res.render),
 	}
 }
@@ -124,7 +126,7 @@ func accountLeafRunE(app *App, path, covID string, render func(json.RawMessage) 
 			return err
 		}
 		concise := ""
-		if render != nil {
+		if app.Mode == output.ModeConcise && render != nil {
 			concise = render(raw)
 		}
 		return output.Render(app.Out, raw, app.Mode, concise)

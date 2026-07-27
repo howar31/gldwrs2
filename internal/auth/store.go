@@ -56,11 +56,19 @@ func LoadOrCreateKey(dir string) ([]byte, error) {
 	if b := os.Getenv("GW2_KEYRING_BACKEND"); len(b) > 5 && b[:5] == "file:" {
 		path = b[5:]
 	}
-	if data, err := os.ReadFile(path); err == nil {
+	data, err := os.ReadFile(path)
+	if err == nil {
 		if len(data) != 32 {
 			return nil, fmt.Errorf("key file %s is not 32 bytes", path)
 		}
 		return data, nil
+	}
+	// Only a genuinely missing key file may trigger creation. Any other read
+	// error (permissions, I/O) must propagate: silently generating a fresh
+	// key here would overwrite the old one and permanently destroy the
+	// ability to decrypt every stored profile.
+	if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("read key file %s: %w", path, err)
 	}
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
@@ -241,13 +249,19 @@ func (s *Store) Remove(name string) error {
 	return s.save(c)
 }
 
+// ErrNoProfiles is returned by DefaultProfile when no profile has ever been
+// set. Callers use it to distinguish the benign "nothing configured" case
+// from a real store failure (e.g. a corrupt config.toml), which must not be
+// silently treated as "no profiles".
+var ErrNoProfiles = errors.New("no profiles configured")
+
 func (s *Store) DefaultProfile() (string, error) {
 	c, err := s.load()
 	if err != nil {
 		return "", err
 	}
 	if c.Default == "" {
-		return "", errors.New("no profiles configured")
+		return "", ErrNoProfiles
 	}
 	return c.Default, nil
 }

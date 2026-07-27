@@ -19,6 +19,7 @@ func newBuildCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "build",
 		Short: "Current game build id",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered("build")
 			ctx := context.Background()
@@ -70,6 +71,7 @@ func newTokenInfoCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "info",
 		Short: "Info about the configured API key",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered("token info")
 			ctx := context.Background()
@@ -111,6 +113,7 @@ func newTokenSubtokenCmd(app *App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "subtoken",
 		Short: "Create a restricted-scope subtoken from the configured key",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered("token subtoken")
 			ctx := context.Background()

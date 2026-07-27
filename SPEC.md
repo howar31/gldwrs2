@@ -18,7 +18,7 @@ Layered single binary, stateless per invocation:
 
 1. **`cmd/gw2/main.go`** — builds the Cobra root command via `commands.Root(gldwrs2.Version)`, executes it, maps errors to exit codes via `api.ExitCode`.
 2. **`internal/commands`** — the command tree: one file per command group (`data.go`, `account.go`, `character.go`, `commerce.go`, `wvw.go`, `pvp.go`, `guild.go`, `achievements.go`, `token.go`, `auth.go`, `app.go`), plus shared leaf-building helpers (`leaf.go`, `tree.go`) and the coverage meta-test (`zz_coverage_test.go`). `App` (in `app.go`) carries shared dependencies (`Out`, `BaseURL`, `Profile`, `Lang`, `Mode`, `Store`, `Limiter`) and builds per-request clients via `client()` (anonymous OK) or `authedClient()` (errors up front if no key is configured).
-3. **`internal/api`** — hand-written REST client for `https://api.guildwars2.com`. `Get`/`GetByIDs`/`GetAllPages` inject the pinned schema (`v=`) and `lang=` params, chunk bulk-id requests at 200/request (`MaxIDsPerRequest`), and auto-page via `X-Page-Total`. Transient statuses (429, 502–504) are retried with backoff honoring `Retry-After`. Non-2xx responses become `*APIError{StatusCode, Body, Hint}`; `403` gets a hint distinguishing an invalid key from a missing scope.
+3. **`internal/api`** — hand-written REST client for `https://api.guildwars2.com`. `Get`/`GetByIDs`/`GetAllPages` inject the pinned schema (`v=`) and `lang=` params, chunk bulk-id requests at 200/request (`MaxIDsPerRequest`), and auto-page via `X-Page-Total`. Transient statuses (429, 502–504) are retried with backoff honoring `Retry-After` (capped at 30s — a hostile/absurd header must not stall the CLI) through one shared request pipeline (`do`) used by both single GETs and pagination. Non-2xx responses become `*APIError{StatusCode, Body, Hint}`; `401`/`403` get a hint distinguishing an invalid key from a missing scope.
 4. **`internal/auth`** — profile store at `~/.config/gw2/config.toml` (mode 0600, TOML, atomic write-then-rename). API keys are AES-256-GCM-encrypted at rest; the 32-byte key lives at `<dir>/key` (mode 0600), generated on first use. `GW2_KEYRING_BACKEND=file:<path>` overrides the key file's location — there is no OS-keyring integration (unlike `dscrd`). `DefaultDir` honors `XDG_CONFIG_HOME` before falling back to `~/.config/gw2`.
 5. **`internal/output`** — `Render(w, raw, mode, concise)`: `ModeConcise` (default; falls back to pretty JSON if no concise string), `ModeRaw` (API's untouched JSON), `ModeJSON` (pretty-printed). No `table`/`jsonl` modes.
 6. **`internal/resolve`** — name→id resolution: `GuildID` passes a GUID-shaped string through unchanged, otherwise resolves via `/v2/guild/search?name=`. Character names need no resolution (the API's `:id` path segment for characters *is* the name).
@@ -72,7 +72,7 @@ Full endpoint-to-command mapping: the design spec §4, or `gw2 <group> --help` /
 
 Coverage of 184 endpoints reduces to 5 structural archetypes (design spec §5):
 
-1. **Catalog (~64)** — `newCatalogResourceCmd`: enumerate ids → bulk-fetch-by-ids → optional `--lang`. One table row per endpoint.
+1. **Catalog (~64)** — `newCatalogResourceCmd` (delegating to the shared `newByIDsListCmd`): enumerate ids → bulk-fetch-by-ids → optional `--lang`. One table row per endpoint.
 2. **Account assets (46)** — same registration-table shape, ~6 bespoke renderers.
 3. **`:id`-parameterized** (characters 18, guild 12) — shared `<id-or-name>/<subresource>` positional dispatch + `resolve/` for name→id where the API needs a different id shape (guild GUID).
 4. **Domain endpoints with real rendering** (commerce 5, wvw 17, pvp 13, achievements 5 ≈ 40) — hand-written concise renderers and light logic; the bulk of genuine hand-authoring.
@@ -82,15 +82,15 @@ Coverage of 184 endpoints reduces to 5 structural archetypes (design spec §5):
 
 ## Auth & credentials
 
-Static API key (created at <https://account.arena.net/applications>; the CLI never creates keys), sent as `Authorization: Bearer <key>`. Storage: `~/.config/gw2/config.toml` (0600), AES-256-GCM-encrypted, key at `<dir>/key` (0600); `GW2_KEYRING_BACKEND=file:<path>` relocates the key file. Multiple named profiles (`gw2 auth set <name> --key`); `--profile` selects one, otherwise the first-set profile is the default. `gw2 token info` reports the current key's scopes; a `403` response is mapped to a hint distinguishing "invalid key" from "missing scope".
+Static API key (created at <https://account.arena.net/applications>; the CLI never creates keys), sent as `Authorization: Bearer <key>`. Storage: `~/.config/gw2/config.toml` (0600), AES-256-GCM-encrypted, key at `<dir>/key` (0600); `GW2_KEYRING_BACKEND=file:<path>` relocates the key file. Multiple named profiles (`gw2 auth set <name> --key`); `--profile` selects one, otherwise the first-set profile is the default. `gw2 token info` reports the current key's scopes; a `401`/`403` response is mapped to a hint distinguishing "invalid key" from "missing scope". The credential store opens lazily on first use, so public commands never create the config dir/key; an unreadable existing key file is a hard error, never silently regenerated.
 
 ## Cross-cutting query features
 
 Implemented once in `internal/api`, used across applicable commands:
 
 - **Bulk ids** — `--ids=a,b,c` (chunked at 200/request, merged) or `--ids=all`/`--all` (enumerate then fetch every entry — always explicit; a bare command with no ids/`--all` never auto-dumps a catalog).
-- **Pagination** — `GetAllPages` auto-pages using `X-Page-Total`.
-- **Localization** — `--lang` (root persistent flag, default `en`); applies only to localizable endpoints (`catalogResource.localized`).
+- **Pagination** — `GetAllPages` auto-pages using `X-Page-Total`; used by `commerce transactions` (the one currently-paginated command surface).
+- **Localization** — `--lang` (root persistent flag, default `en`); non-localized endpoints suppress the param via `api.LangNone` (wired from `catalogResource.localized`).
 - **Schema pin** — `api.SchemaVersion = "2026-07-07T00:00:00Z"`, sent as `v=` on every request so responses stay pinned against schema drift regardless of when the binary runs.
 - **Output** — `--raw` (untouched API JSON) / `--json` (pretty JSON) / default concise.
 
@@ -98,7 +98,7 @@ Implemented once in `internal/api`, used across applicable commands:
 
 - **Rate limiter** (`internal/api/limiter.go`): token bucket, burst 300, refill 5/sec, matching the GW2 API's per-IP limit; the client waits for a token before every request rather than reacting to 429s alone.
 - **Retries**: 429 and 502/503/504 are retried with exponential backoff (honoring `Retry-After` when present), capped, up to `maxRetries` (5).
-- **Exit codes** (`api.ExitCode`): `0` ok · `3` auth (`403`) · `4` not found (`404`) · `5` rate-limited (`429`) · `1` other.
+- **Exit codes** (`api.ExitCode`): `0` ok · `3` auth (`401`/`403`) · `4` not found (`404`) · `5` rate-limited (`429`) · `1` other.
 
 ## Skill generation
 

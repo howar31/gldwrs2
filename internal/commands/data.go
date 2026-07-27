@@ -179,59 +179,12 @@ func newCatalogLeafCmd(app *App, res catalogResource, use string) *cobra.Command
 	return newCatalogResourceCmd(app, res, use)
 }
 
+// newCatalogResourceCmd delegates to the shared by-ids leaf (leaf.go); the
+// catalog's only extras are the covID derived from the segment path and the
+// localized flag controlling lang injection.
 func newCatalogResourceCmd(app *App, res catalogResource, use string) *cobra.Command {
 	covID := "data " + strings.Join(res.segments, " ")
-	var ids string
-	var all bool
-	c := &cobra.Command{
-		Use:   use,
-		Short: "Fetch " + covID,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			markCovered(covID)
-			ctx := context.Background()
-			client, err := app.client()
-			if err != nil {
-				return err
-			}
-			// No ids and not --all: show the id list only (never auto-dump).
-			if ids == "" && !all {
-				raw, err := client.Get(ctx, res.path, nil)
-				if err != nil {
-					return err
-				}
-				return output.Render(app.Out, raw, app.Mode, conciseIDList(raw))
-			}
-			var idList []string
-			if all {
-				raw, err := client.Get(ctx, res.path, nil)
-				if err != nil {
-					return err
-				}
-				var nums []json.RawMessage
-				if err := json.Unmarshal(raw, &nums); err != nil {
-					return err
-				}
-				for _, n := range nums {
-					idList = append(idList, strings.Trim(string(n), `"`))
-				}
-			} else {
-				idList = strings.Split(ids, ",")
-			}
-			items, err := client.GetByIDs(ctx, res.path, idList, nil)
-			if err != nil {
-				return err
-			}
-			concise := ""
-			if res.render != nil {
-				concise = res.render(items)
-			}
-			merged, _ := json.Marshal(items)
-			return output.Render(app.Out, merged, app.Mode, concise)
-		},
-	}
-	c.Flags().StringVar(&ids, "ids", "", "comma-separated ids (omit to list ids)")
-	c.Flags().BoolVar(&all, "all", false, "fetch every entry (explicit; may be large)")
-	return c
+	return newByIDsListCmd(app, use, "Fetch "+covID, res.path, covID, res.render, false, !res.localized)
 }
 
 // newRecipesSearchCmd builds `data recipes search`, which is not a by-ids
@@ -243,6 +196,7 @@ func newRecipesSearchCmd(app *App, res catalogResource) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "search",
 		Short: "Search recipes by input or output item id",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered(covID)
 			if inputID == 0 && outputID == 0 {
@@ -264,7 +218,11 @@ func newRecipesSearchCmd(app *App, res catalogResource) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.Render(app.Out, raw, app.Mode, conciseIDList(raw))
+			concise := ""
+			if app.Mode == output.ModeConcise {
+				concise = conciseIDList(raw)
+			}
+			return output.Render(app.Out, raw, app.Mode, concise)
 		},
 	}
 	c.Flags().IntVar(&inputID, "input", 0, "filter recipes producible from this item id")

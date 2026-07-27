@@ -57,7 +57,7 @@ func newCommerceLookupCmd(app *App, use, path string, render func([]json.RawMess
 			markCovered(covID)
 			idList := append([]string(nil), args...)
 			if idsFlag != "" {
-				idList = append(idList, strings.Split(idsFlag, ",")...)
+				idList = append(idList, splitIDs(idsFlag)...)
 			}
 			if len(idList) == 0 {
 				return fmt.Errorf("%s requires at least one id (positional args or --ids)", covID)
@@ -72,7 +72,7 @@ func newCommerceLookupCmd(app *App, use, path string, render func([]json.RawMess
 				return err
 			}
 			concise := ""
-			if render != nil {
+			if app.Mode == output.ModeConcise && render != nil {
 				concise = render(items)
 			}
 			merged, _ := json.Marshal(items)
@@ -108,6 +108,7 @@ func newCommerceExchangeLeafCmd(app *App, use, path string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   use,
 		Short: "Exchange rate: " + covID,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered(covID)
 			if quantity <= 0 {
@@ -124,7 +125,11 @@ func newCommerceExchangeLeafCmd(app *App, use, path string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.Render(app.Out, raw, app.Mode, renderExchange(raw, use))
+			concise := ""
+			if app.Mode == output.ModeConcise {
+				concise = renderExchange(raw, use)
+			}
+			return output.Render(app.Out, raw, app.Mode, concise)
 		},
 	}
 	c.Flags().IntVar(&quantity, "quantity", 0, "amount to exchange (required, > 0)")
@@ -135,7 +140,9 @@ func newCommerceExchangeLeafCmd(app *App, use, path string) *cobra.Command {
 // <buys|sells>`, authed (needs the "tradingpost" scope). Both positional
 // args are validated against their fixed vocabularies before the network
 // call, so a typo'd arg errors immediately instead of hitting the API with a
-// malformed path.
+// malformed path. The endpoint is paginated, so this walks every page via
+// GetAllPages -- a single unpaginated GET would silently truncate any
+// history beyond the API's first page.
 func newCommerceTransactionsCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "transactions <current|history> <buys|sells>",
@@ -155,15 +162,16 @@ func newCommerceTransactionsCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			raw, err := client.Get(ctx, "/v2/commerce/transactions/"+kind+"/"+typ, nil)
+			items, err := client.GetAllPages(ctx, "/v2/commerce/transactions/"+kind+"/"+typ, nil)
 			if err != nil {
 				return err
 			}
-			var items []json.RawMessage
-			if err := json.Unmarshal(raw, &items); err != nil {
-				return err
+			concise := ""
+			if app.Mode == output.ModeConcise {
+				concise = renderTransactions(items)
 			}
-			return output.Render(app.Out, raw, app.Mode, renderTransactions(items))
+			merged, _ := json.Marshal(items)
+			return output.Render(app.Out, merged, app.Mode, concise)
 		},
 	}
 }
@@ -175,6 +183,7 @@ func newCommerceDeliveryCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "delivery",
 		Short: "Items and coins waiting in your delivery box",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered("commerce delivery")
 			ctx := context.Background()
@@ -186,7 +195,11 @@ func newCommerceDeliveryCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.Render(app.Out, raw, app.Mode, renderDelivery(raw))
+			concise := ""
+			if app.Mode == output.ModeConcise {
+				concise = renderDelivery(raw)
+			}
+			return output.Render(app.Out, raw, app.Mode, concise)
 		},
 	}
 }

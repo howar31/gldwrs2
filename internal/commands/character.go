@@ -83,7 +83,11 @@ func newCharacterCmd(app *App) *cobra.Command {
 					if err != nil {
 						return err
 					}
-					return output.Render(app.Out, raw, app.Mode, conciseIDList(raw))
+					concise := ""
+					if app.Mode == output.ModeConcise {
+						concise = conciseNameLines(raw)
+					}
+					return output.Render(app.Out, raw, app.Mode, concise)
 				}
 				name := url.PathEscape(args[0])
 				raw, err := client.Get(ctx, "/v2/characters/"+name, nil)
@@ -169,4 +173,17 @@ func renderCrafting(raw json.RawMessage) string {
 		fmt.Fprintf(&b, "%s\t%d%s\n", it.Discipline, it.Rating, status)
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// conciseNameLines renders a JSON string array one entry per line. Character
+// names contain spaces, so the space-joined id-list form (conciseIDList)
+// would make name boundaries unrecoverable; one name per line keeps the
+// concise output parseable for both humans and agents feeding a name back
+// into `gw2 character <name> ...`.
+func conciseNameLines(raw json.RawMessage) string {
+	var names []string
+	if err := json.Unmarshal(raw, &names); err != nil {
+		return ""
+	}
+	return strings.Join(names, "\n")
 }

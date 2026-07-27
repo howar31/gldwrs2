@@ -3,11 +3,35 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 	"strings"
 
+	"github.com/howar31/gldwrs2/internal/api"
 	"github.com/howar31/gldwrs2/internal/output"
 	"github.com/spf13/cobra"
 )
+
+// splitIDs splits a comma-separated --ids value, trimming whitespace around
+// each id and dropping empties, so `--ids "1, 2"` queries "2" rather than
+// the literal " 2" (which the API treats as an unknown id).
+func splitIDs(s string) []string {
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// noLangParams returns params that suppress the client's automatic lang
+// injection, for endpoints that aren't localized.
+func noLangParams() url.Values {
+	p := url.Values{}
+	p.Set("lang", api.LangNone)
+	return p
+}
 
 // newByIDsListCmd builds a leaf command for the enumerate-ids -> fetch-by-ids
 // shape shared by several /v2 resource families: bare invocation (no
@@ -16,19 +40,27 @@ import (
 // first and then fetches everything. covID is the string recorded via
 // markCovered for the coverage meta-test. authed picks app.authedClient()
 // (errors up front if no key is configured) over app.client() (anonymous is
-// fine for public data).
+// fine for public data). noLang suppresses the lang query param for
+// endpoints that aren't localized.
 //
-// This is the shared extraction of what was, before this refactor, near-
-// identical logic duplicated in data.go's newCatalogResourceCmd and wvw.go's
-// newWvwListLeafCmd. data.go's version is intentionally left as-is (it also
-// carries nesting/localized/buildCmd concerns this helper doesn't need);
-// wvw.go's version now delegates here, as does pvp.go's public-resource set.
-func newByIDsListCmd(app *App, use, short, path, covID string, render func([]json.RawMessage) string, authed bool) *cobra.Command {
+// This is the single implementation of the by-ids list shape: data.go's
+// catalog leaves, wvw.go's list leaves, and pvp.go's public-resource set all
+// delegate here. Positional args are rejected (cobra.NoArgs) -- ids go
+// through --ids, and silently ignoring a positional id would return the full
+// id list while looking like a successful lookup.
+func newByIDsListCmd(app *App, use, short, path, covID string, render func([]json.RawMessage) string, authed, noLang bool) *cobra.Command {
 	var ids string
 	var all bool
+	params := func() url.Values {
+		if noLang {
+			return noLangParams()
+		}
+		return nil
+	}
 	c := &cobra.Command{
 		Use:   use,
 		Short: short,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered(covID)
 			ctx := context.Background()
@@ -42,15 +74,19 @@ func newByIDsListCmd(app *App, use, short, path, covID string, render func([]jso
 			}
 			// No ids and not --all: show the id list only (never auto-dump).
 			if ids == "" && !all {
-				raw, err := client.Get(ctx, path, nil)
+				raw, err := client.Get(ctx, path, params())
 				if err != nil {
 					return err
 				}
-				return output.Render(app.Out, raw, app.Mode, conciseIDList(raw))
+				concise := ""
+				if app.Mode == output.ModeConcise {
+					concise = conciseIDList(raw)
+				}
+				return output.Render(app.Out, raw, app.Mode, concise)
 			}
 			var idList []string
 			if all {
-				raw, err := client.Get(ctx, path, nil)
+				raw, err := client.Get(ctx, path, params())
 				if err != nil {
 					return err
 				}
@@ -62,14 +98,14 @@ func newByIDsListCmd(app *App, use, short, path, covID string, render func([]jso
 					idList = append(idList, strings.Trim(string(n), `"`))
 				}
 			} else {
-				idList = strings.Split(ids, ",")
+				idList = splitIDs(ids)
 			}
-			items, err := client.GetByIDs(ctx, path, idList, nil)
+			items, err := client.GetByIDs(ctx, path, idList, params())
 			if err != nil {
 				return err
 			}
 			concise := ""
-			if render != nil {
+			if app.Mode == output.ModeConcise && render != nil {
 				concise = render(items)
 			}
 			merged, _ := json.Marshal(items)
@@ -85,7 +121,8 @@ func newByIDsListCmd(app *App, use, short, path, covID string, render func([]jso
 // and no natural named-list concise form (pretty JSON fallback). Originally
 // written for wvw.go's "timers" group (three identical leaves); reused as-is
 // by achievements.go's "daily"/"daily tomorrow" rather than duplicating a
-// fourth and fifth copy of the same six lines.
+// fourth and fifth copy of the same six lines. Commands built around this
+// take no arguments; construction sites set cobra.NoArgs.
 func newSimpleGetRunE(app *App, path, covID string) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		markCovered(covID)

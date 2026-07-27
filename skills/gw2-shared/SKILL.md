@@ -11,8 +11,8 @@ Conventions shared by every gw2 command.
 
 Available on every command:
 
-- `--profile <name>` — credential profile to use (default: whichever profile
-  was most recently set via `gw2 auth set`)
+- `--profile <name>` — credential profile to use (default: the FIRST profile
+  ever stored via `gw2 auth set`; removing it promotes the next-oldest)
 - `--lang en|es|de|fr|zh` — response language for localized data (default: en)
 - `--raw` — print the API's raw JSON response, unmodified
 - `--json` — print the response as pretty-indented JSON
@@ -44,7 +44,7 @@ select a stored key other than the default.
 ## Exit codes
 
 - `0` — success
-- `3` — authentication/permission error (API returned 403)
+- `3` — authentication/permission error (API returned 401 or 403)
 - `4` — not found (API returned 404)
 - `5` — rate-limited (API returned 429)
 - `1` — any other error

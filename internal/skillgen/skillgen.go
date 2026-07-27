@@ -55,6 +55,9 @@ func Generate(root *cobra.Command, version, outDir string) error {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err
 	}
+	if err := removeStaleSkillDirs(outDir, groups); err != nil {
+		return err
+	}
 	if err := writeSkill(outDir, "gw2", indexBody(version, groups)); err != nil {
 		return err
 	}
@@ -194,8 +197,8 @@ func sharedBody(version string) string {
 
 	b.WriteString("## Global flags\n\n")
 	b.WriteString("Available on every command:\n\n")
-	b.WriteString("- `--profile <name>` — credential profile to use (default: whichever profile\n")
-	b.WriteString("  was most recently set via `gw2 auth set`)\n")
+	b.WriteString("- `--profile <name>` — credential profile to use (default: the FIRST profile\n")
+	b.WriteString("  ever stored via `gw2 auth set`; removing it promotes the next-oldest)\n")
 	b.WriteString("- `--lang en|es|de|fr|zh` — response language for localized data (default: en)\n")
 	b.WriteString("- `--raw` — print the API's raw JSON response, unmodified\n")
 	b.WriteString("- `--json` — print the response as pretty-indented JSON\n\n")
@@ -220,7 +223,7 @@ func sharedBody(version string) string {
 
 	b.WriteString("## Exit codes\n\n")
 	b.WriteString("- `0` — success\n")
-	b.WriteString("- `3` — authentication/permission error (API returned 403)\n")
+	b.WriteString("- `3` — authentication/permission error (API returned 401 or 403)\n")
 	b.WriteString("- `4` — not found (API returned 404)\n")
 	b.WriteString("- `5` — rate-limited (API returned 429)\n")
 	b.WriteString("- `1` — any other error\n\n")
@@ -259,4 +262,37 @@ func groupBody(g group) string {
 	}
 	b.WriteString("\nSee `gw2-shared` for auth setup and global flags.\n")
 	return b.String()
+}
+
+// removeStaleSkillDirs deletes previously generated skill directories that
+// this run no longer produces (e.g. after a command group is renamed or
+// removed), so regeneration never leaves an orphaned gw2-<old>/SKILL.md
+// behind. Only directories that look generated are touched: the name must be
+// "gw2" or "gw2-*" and the directory must contain a SKILL.md. Anything else
+// in outDir is left alone.
+func removeStaleSkillDirs(outDir string, groups []group) error {
+	want := map[string]bool{"gw2": true, "gw2-shared": true}
+	for _, g := range groups {
+		want["gw2-"+g.name] = true
+	}
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if !e.IsDir() || want[name] {
+			continue
+		}
+		if name != "gw2" && !strings.HasPrefix(name, "gw2-") {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(outDir, name, "SKILL.md")); err != nil {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(outDir, name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }

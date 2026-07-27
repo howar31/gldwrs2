@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/howar31/gldwrs2/internal/output"
 	"github.com/spf13/cobra"
@@ -43,7 +42,8 @@ var wvwListResources = []wvwListResource{
 // information, unlike /v2/account/wvw (already covered by the account
 // group), which is the one WvW resource scoped to the caller's account.
 //
-// DEFERRED (not registered here; see task-E-report.md): the three deep
+// DEFERRED (not registered here; see docs/superpowers/specs/
+// 2026-07-07-gw2-cli-design.md, "Out of scope"-adjacent deferrals): the three deep
 // path-param match-stats endpoints, /v2/wvw/matches/stats/:id/guilds/:guild_id,
 // .../teams/:team/top/kdr, .../teams/:team/top/kills.
 func newWvwCmd(app *App) *cobra.Command {
@@ -64,7 +64,7 @@ func newWvwCmd(app *App) *cobra.Command {
 // live here rather than in data.go's catalogResources.
 func newWvwListLeafCmd(app *App, res wvwListResource) *cobra.Command {
 	covID := "wvw " + res.name
-	return newByIDsListCmd(app, res.name, "Fetch "+covID, res.path, covID, res.render, false)
+	return newByIDsListCmd(app, res.name, "Fetch "+covID, res.path, covID, res.render, false, false)
 }
 
 // newWvwMatchesCmd builds "matches" and its three sub-resources (overview,
@@ -108,7 +108,7 @@ func newWvwMatchesLeafCmd(app *App, use, path, covID string, allowPositional boo
 				idList = append(idList, args...)
 			}
 			if idsFlag != "" {
-				idList = append(idList, strings.Split(idsFlag, ",")...)
+				idList = append(idList, splitIDs(idsFlag)...)
 			}
 			if world != 0 && len(idList) > 0 {
 				return fmt.Errorf("%s: --world cannot be combined with ids/--ids", covID)
@@ -132,7 +132,11 @@ func newWvwMatchesLeafCmd(app *App, use, path, covID string, allowPositional boo
 				if err != nil {
 					return err
 				}
-				return output.Render(app.Out, raw, app.Mode, conciseIDList(raw))
+				concise := ""
+				if app.Mode == output.ModeConcise {
+					concise = conciseIDList(raw)
+				}
+				return output.Render(app.Out, raw, app.Mode, concise)
 			}
 			items, err := client.GetByIDs(ctx, path, idList, nil)
 			if err != nil {
@@ -161,17 +165,20 @@ func newWvwTimersCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "timers",
 		Short: "WvW map rotation and lockout timers",
+		Args:  cobra.NoArgs,
 		RunE:  newSimpleGetRunE(app, "/v2/wvw/timers", "wvw timers"),
 	}
 	cmd.AddCommand(
 		&cobra.Command{
 			Use:   "lockout",
 			Short: "Fetch wvw timers lockout",
+			Args:  cobra.NoArgs,
 			RunE:  newSimpleGetRunE(app, "/v2/wvw/timers/lockout", "wvw timers lockout"),
 		},
 		&cobra.Command{
 			Use:   "teamAssignment",
 			Short: "Fetch wvw timers teamAssignment",
+			Args:  cobra.NoArgs,
 			RunE:  newSimpleGetRunE(app, "/v2/wvw/timers/teamAssignment", "wvw timers teamAssignment"),
 		},
 	)
@@ -187,6 +194,7 @@ func newWvwGuildsCmd(app *App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "guilds",
 		Short: "WvW guild claims by region",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			markCovered("wvw guilds")
 			ctx := context.Background()

@@ -18,11 +18,11 @@ import (
 // rather than registered as separate siblings, which would risk a duplicate
 // "achievements" group command.
 func newAchievementsCmd(app *App) *cobra.Command {
-	cmd := newByIDsListCmd(app, "achievements", "Fetch achievements", "/v2/achievements", "achievements", renderNamed, false)
+	cmd := newByIDsListCmd(app, "achievements", "Fetch achievements", "/v2/achievements", "achievements", renderNamed, false, false)
 	cmd.Short = "Achievements, categories, groups, and dailies"
 	cmd.AddCommand(
-		newByIDsListCmd(app, "categories", "Fetch achievements categories", "/v2/achievements/categories", "achievements categories", renderNamed, false),
-		newByIDsListCmd(app, "groups", "Fetch achievements groups", "/v2/achievements/groups", "achievements groups", renderNamed, false),
+		newByIDsListCmd(app, "categories", "Fetch achievements categories", "/v2/achievements/categories", "achievements categories", renderNamed, false, false),
+		newByIDsListCmd(app, "groups", "Fetch achievements groups", "/v2/achievements/groups", "achievements groups", renderNamed, false, false),
 		newAchievementsDailyCmd(app),
 	)
 	return cmd
@@ -40,11 +40,13 @@ func newAchievementsDailyCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "daily",
 		Short: "Today's daily achievements",
+		Args:  cobra.NoArgs,
 		RunE:  newSimpleGetRunE(app, "/v2/achievements/daily", "achievements daily"),
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "tomorrow",
 		Short: "Tomorrow's daily achievements",
+		Args:  cobra.NoArgs,
 		RunE:  newSimpleGetRunE(app, "/v2/achievements/daily/tomorrow", "achievements daily tomorrow"),
 	})
 	return cmd

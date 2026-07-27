@@ -28,10 +28,14 @@ func (e *APIError) Error() string {
 
 func apiErrorFrom(code int, body []byte) *APIError {
 	e := &APIError{StatusCode: code, Body: string(body)}
-	if code == http.StatusForbidden {
+	// The GW2 API is inconsistent about auth failures: many authenticated
+	// endpoints answer 401 ("Invalid access token") for a missing/revoked
+	// key, others 403. Both are authentication errors and get the same
+	// hints and exit code.
+	if code == http.StatusUnauthorized || code == http.StatusForbidden {
 		text := strings.ToLower(extractText(e.Body))
 		switch {
-		case strings.Contains(text, "invalid key"):
+		case strings.Contains(text, "invalid key") || strings.Contains(text, "invalid access token"):
 			e.Hint = "check your API key (gw2 auth set)"
 		case strings.Contains(text, "requires scope") || strings.Contains(text, "permission"):
 			e.Hint = "your key lacks a required permission; see gw2 token info"
@@ -66,7 +70,7 @@ func ExitCode(err error) int {
 	var ae *APIError
 	if errors.As(err, &ae) {
 		switch ae.StatusCode {
-		case http.StatusForbidden:
+		case http.StatusUnauthorized, http.StatusForbidden:
 			return 3
 		case http.StatusNotFound:
 			return 4

@@ -69,9 +69,6 @@ async function main() {
     console.error(`Upgrading gw2 from v${installed} to v${version}`);
   }
 
-  if (fs.existsSync(INSTALL_DIR)) rmSync(INSTALL_DIR, { recursive: true, force: true });
-  mkdirSync(INSTALL_DIR, { recursive: true });
-
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gw2-"));
   const tarPath = path.join(tmpDir, platform.artifact);
   const sumsPath = path.join(tmpDir, "checksums.txt");
@@ -92,6 +89,12 @@ async function main() {
       );
     }
     console.error("Checksum verified.");
+
+    // Only now -- after the new release is fully downloaded and verified --
+    // is the previous install removed. A failed download or checksum
+    // mismatch above must leave an existing working binary untouched.
+    if (fs.existsSync(INSTALL_DIR)) rmSync(INSTALL_DIR, { recursive: true, force: true });
+    mkdirSync(INSTALL_DIR, { recursive: true });
 
     console.error(`Extracting to ${INSTALL_DIR}`);
     extractTarGz(tarPath, INSTALL_DIR);

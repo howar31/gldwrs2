@@ -41,7 +41,7 @@ func newPvpCmd(app *App) *cobra.Command {
 	}
 	for _, res := range pvpByIDsResources {
 		covID := "pvp " + res.name
-		leaf := newByIDsListCmd(app, res.name, "Fetch "+covID, res.path, covID, renderNamed, false)
+		leaf := newByIDsListCmd(app, res.name, "Fetch "+covID, res.path, covID, renderNamed, false, false)
 		// seasons plays a dual role: it's both a by-ids leaf and the parent
 		// of "leaderboards", same pattern as data.go's recipes/recipes
 		// search -- attach leaderboards as a child of the leaf command
@@ -53,7 +53,7 @@ func newPvpCmd(app *App) *cobra.Command {
 		cmd.AddCommand(leaf)
 	}
 	cmd.AddCommand(
-		newByIDsListCmd(app, "games", "Fetch pvp games", "/v2/pvp/games", "pvp games", nil, true),
+		newByIDsListCmd(app, "games", "Fetch pvp games", "/v2/pvp/games", "pvp games", nil, true, true),
 		newPvpStandingsCmd(app),
 		newPvpStatsCmd(app),
 	)
