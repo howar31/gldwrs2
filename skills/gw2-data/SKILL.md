@@ -12,6 +12,7 @@ Commands under `gw2 data`.
 - `gw2 data adventures [flags]` — Fetch data adventures
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data adventures leaderboards` — Adventure leaderboard boards, or one board's standings
 - `gw2 data backstory answers [flags]` — Fetch data backstory answers
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)

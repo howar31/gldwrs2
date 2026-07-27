@@ -26,6 +26,8 @@ Commands under `gw2 wvw`.
 - `gw2 wvw matches stats [flags]` — Fetch wvw matches stats
   - `--ids <string>` — comma-separated match ids
   - `--world <int>` — filter to the match containing this world id
+- `gw2 wvw matches stats guilds` — One guild's stats within a WvW match
+- `gw2 wvw matches stats top` — Top guilds by kdr/kills for one team in a WvW match
 - `gw2 wvw objectives [flags]` — Fetch wvw objectives
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)

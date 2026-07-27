@@ -33,9 +33,12 @@ type catalogResource struct {
 // on their shared parent already existing earlier in this slice -- see
 // newDataCmd / addCatalogResource.
 //
-// DEFERRED (not registered here, need path parameters): /v2/adventures/:id/
-// leaderboards/:board/:region and /v2/homestead/decorations/categories/:id.
-// Plain /v2/adventures (id list) and the categories list are registered.
+// Path-param variants: /v2/homestead/decorations/categories/:id needs no
+// separate command (the categories list resource's --ids query form returns
+// the same objects; verified live). Adventure leaderboards are covered by
+// the "adventures leaderboards" child below -- note the whole /v2/adventures
+// family is currently disabled upstream (503 "API not active"), so it can
+// only be verified against httptest until ArenaNet re-enables it.
 var catalogResources = []catalogResource{
 	{segments: []string{"items"}, path: "/v2/items", localized: true, render: renderNamed},
 	{segments: []string{"itemstats"}, path: "/v2/itemstats", localized: true, render: renderNamed},
@@ -80,7 +83,6 @@ var catalogResources = []catalogResource{
 	{segments: []string{"events"}, path: "/v2/events", localized: true, render: renderNamed},
 	{segments: []string{"events-state"}, path: "/v2/events-state", localized: false, render: renderNamed},
 	{segments: []string{"gemstore-catalog"}, path: "/v2/gemstore/catalog", localized: true, render: renderNamed},
-	// Plain id list only; leaderboards need path params and are deferred.
 	{segments: []string{"adventures"}, path: "/v2/adventures", localized: false, render: renderNamed},
 
 	// Nested resources. Order matters: a resource that is itself both an
@@ -92,7 +94,8 @@ var catalogResources = []catalogResource{
 	{segments: []string{"home", "cats"}, path: "/v2/home/cats", localized: true, render: renderNamed},
 	{segments: []string{"home", "nodes"}, path: "/v2/home/nodes", localized: true, render: renderNamed},
 	{segments: []string{"homestead", "decorations"}, path: "/v2/homestead/decorations", localized: true, render: renderNamed},
-	// DEFERRED: /v2/homestead/decorations/categories/:id needs a path param.
+	// The :id path variant of categories is covered by this resource's
+	// --ids query form (same objects; verified live).
 	{segments: []string{"homestead", "decorations", "categories"}, path: "/v2/homestead/decorations/categories", localized: true, render: renderNamed},
 	{segments: []string{"homestead", "glyphs"}, path: "/v2/homestead/glyphs", localized: true, render: renderNamed},
 	{segments: []string{"mounts", "skins"}, path: "/v2/mounts/skins", localized: true, render: renderNamed},
@@ -102,6 +105,7 @@ var catalogResources = []catalogResource{
 	{segments: []string{"wizardsvault", "listings"}, path: "/v2/wizardsvault/listings", localized: true, render: renderNamed},
 	{segments: []string{"wizardsvault", "objectives"}, path: "/v2/wizardsvault/objectives", localized: true, render: renderNamed},
 	{segments: []string{"recipes", "search"}, path: "/v2/recipes/search", localized: false, buildCmd: newRecipesSearchCmd},
+	{segments: []string{"adventures", "leaderboards"}, path: "/v2/adventures", localized: false, buildCmd: newAdventuresLeaderboardsCmd},
 }
 
 func renderColors(items []json.RawMessage) string {
@@ -244,3 +248,43 @@ func conciseIDList(raw json.RawMessage) string {
 
 // markCovered is a no-op in production; tests replace it to track coverage.
 var markCovered = func(string) {}
+
+// newAdventuresLeaderboardsCmd builds `data adventures leaderboards
+// <adventureId> [<board> <region>]`: with one arg it lists the adventure's
+// leaderboard board ids (/v2/adventures/:id/leaderboards); with three it
+// fetches one board's standings (.../:board/:region). Every user-supplied
+// path segment is path-escaped. NOTE: the /v2/adventures family is
+// currently disabled upstream (503 "API not active"); the command is
+// implemented for coverage and will start working when ArenaNet re-enables
+// the endpoint.
+func newAdventuresLeaderboardsCmd(app *App, res catalogResource) *cobra.Command {
+	return &cobra.Command{
+		Use:   "leaderboards <adventureId> [<board> <region>]",
+		Short: "Adventure leaderboard boards, or one board's standings",
+		Args:  cobra.RangeArgs(1, 3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			markCovered("data adventures leaderboards")
+			if len(args) == 2 {
+				return fmt.Errorf("specify both a board and a region (or neither), e.g. leaderboards <id> <board> na")
+			}
+			ctx := context.Background()
+			client, err := app.client()
+			if err != nil {
+				return err
+			}
+			path := res.path + "/" + url.PathEscape(args[0]) + "/leaderboards"
+			if len(args) == 3 {
+				path += "/" + url.PathEscape(args[1]) + "/" + url.PathEscape(args[2])
+			}
+			raw, err := client.Get(ctx, path, nil)
+			if err != nil {
+				return err
+			}
+			concise := ""
+			if app.Mode == output.ModeConcise && len(args) == 1 {
+				concise = conciseIDList(raw)
+			}
+			return output.Render(app.Out, raw, app.Mode, concise)
+		},
+	}
+}

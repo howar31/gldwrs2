@@ -63,9 +63,10 @@ func newPvpCmd(app *App) *cobra.Command {
 // newPvpSeasonsLeaderboardsCmd builds `pvp seasons leaderboards <seasonId>
 // <board> <region>`. Public: leaderboard standings are server-wide
 // information about a PvP season, not scoped to the caller's account.
-// seasonId is path-escaped (its format isn't guaranteed numeric); board and
-// region are the API's own short vocabulary words (e.g. "ladder", "na") and
-// need no escaping.
+// All three path segments are path-escaped: seasonId's format isn't
+// guaranteed numeric, and escaping board/region too keeps every
+// user-supplied path segment in the codebase uniformly escaped (garbage
+// input becomes a clean 404 instead of a mangled request).
 func newPvpSeasonsLeaderboardsCmd(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "leaderboards <seasonId> <board> <region>",
@@ -79,7 +80,7 @@ func newPvpSeasonsLeaderboardsCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			path := "/v2/pvp/seasons/" + url.PathEscape(seasonID) + "/leaderboards/" + board + "/" + region
+			path := "/v2/pvp/seasons/" + url.PathEscape(seasonID) + "/leaderboards/" + url.PathEscape(board) + "/" + url.PathEscape(region)
 			raw, err := client.Get(ctx, path, nil)
 			if err != nil {
 				return err

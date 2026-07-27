@@ -32,6 +32,7 @@ func leafCommands() []string {
 		ids = append(ids, "wvw "+res.name)
 	}
 	ids = append(ids, "wvw matches", "wvw matches overview", "wvw matches scores", "wvw matches stats")
+	ids = append(ids, "wvw matches stats guilds", "wvw matches stats top")
 	ids = append(ids, "wvw timers", "wvw timers lockout", "wvw timers teamAssignment")
 	ids = append(ids, "wvw guilds")
 	for _, res := range pvpByIDsResources {

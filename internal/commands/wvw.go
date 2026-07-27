@@ -42,10 +42,10 @@ var wvwListResources = []wvwListResource{
 // information, unlike /v2/account/wvw (already covered by the account
 // group), which is the one WvW resource scoped to the caller's account.
 //
-// DEFERRED (not registered here; see docs/superpowers/specs/
-// 2026-07-07-gw2-cli-design.md, "Out of scope"-adjacent deferrals): the three deep
-// path-param match-stats endpoints, /v2/wvw/matches/stats/:id/guilds/:guild_id,
-// .../teams/:team/top/kdr, .../teams/:team/top/kills.
+// The deep path-param match-stats endpoints
+// (/v2/wvw/matches/stats/:id/guilds/:guild_id and
+// .../teams/:team/top/{kdr,kills}) are covered by the stats leaf's
+// "guilds"/"top" children below.
 func newWvwCmd(app *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wvw",
@@ -75,12 +75,84 @@ func newWvwListLeafCmd(app *App, res wvwListResource) *cobra.Command {
 func newWvwMatchesCmd(app *App) *cobra.Command {
 	cmd := newWvwMatchesLeafCmd(app, "matches [ids...]", "/v2/wvw/matches", "wvw matches", true)
 	cmd.Short = "WvW match ids, or full match data by id/world"
+	stats := newWvwMatchesLeafCmd(app, "stats", "/v2/wvw/matches/stats", "wvw matches stats", false)
+	// stats plays a dual role (same pattern as pvp seasons/leaderboards):
+	// it is itself a by-ids leaf AND the parent of the deep per-match
+	// analytics endpoints below.
+	stats.AddCommand(newWvwStatsGuildsCmd(app), newWvwStatsTopCmd(app))
 	cmd.AddCommand(
 		newWvwMatchesLeafCmd(app, "overview", "/v2/wvw/matches/overview", "wvw matches overview", false),
 		newWvwMatchesLeafCmd(app, "scores", "/v2/wvw/matches/scores", "wvw matches scores", false),
-		newWvwMatchesLeafCmd(app, "stats", "/v2/wvw/matches/stats", "wvw matches stats", false),
+		stats,
 	)
 	return cmd
+}
+
+// wvwTeams is the fixed team-color vocabulary for the per-team top boards,
+// and wvwTopBoards the two boards the API exposes; both are validated
+// before any network call.
+var (
+	wvwTeams     = map[string]bool{"red": true, "blue": true, "green": true}
+	wvwTopBoards = map[string]bool{"kdr": true, "kills": true}
+)
+
+// newWvwStatsGuildsCmd builds `wvw matches stats guilds <matchId>
+// <guildId>` -> /v2/wvw/matches/stats/:id/guilds/:guild_id: one guild's
+// kill/death stats within one match. Public. Both user-supplied path
+// segments are path-escaped.
+func newWvwStatsGuildsCmd(app *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "guilds <matchId> <guildId>",
+		Short: "One guild's stats within a WvW match",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			markCovered("wvw matches stats guilds")
+			ctx := context.Background()
+			client, err := app.client()
+			if err != nil {
+				return err
+			}
+			path := "/v2/wvw/matches/stats/" + url.PathEscape(args[0]) + "/guilds/" + url.PathEscape(args[1])
+			raw, err := client.Get(ctx, path, nil)
+			if err != nil {
+				return err
+			}
+			return output.Render(app.Out, raw, app.Mode, "")
+		},
+	}
+}
+
+// newWvwStatsTopCmd builds `wvw matches stats top <matchId> <team>
+// <kdr|kills>` -> /v2/wvw/matches/stats/:id/teams/:team/top/:board: the
+// top-guild leaderboard for one team in one match. Public. team and board
+// come from fixed vocabularies validated up front; matchId is path-escaped.
+func newWvwStatsTopCmd(app *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "top <matchId> <red|blue|green> <kdr|kills>",
+		Short: "Top guilds by kdr/kills for one team in a WvW match",
+		Args:  cobra.ExactArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			markCovered("wvw matches stats top")
+			matchID, team, board := args[0], args[1], args[2]
+			if !wvwTeams[team] {
+				return fmt.Errorf("unknown team %q; valid: red, blue, green", team)
+			}
+			if !wvwTopBoards[board] {
+				return fmt.Errorf("unknown board %q; valid: kdr, kills", board)
+			}
+			ctx := context.Background()
+			client, err := app.client()
+			if err != nil {
+				return err
+			}
+			path := "/v2/wvw/matches/stats/" + url.PathEscape(matchID) + "/teams/" + team + "/top/" + board
+			raw, err := client.Get(ctx, path, nil)
+			if err != nil {
+				return err
+			}
+			return output.Render(app.Out, raw, app.Mode, "")
+		},
+	}
 }
 
 // newWvwMatchesLeafCmd builds one matches leaf (the top-level "matches", or

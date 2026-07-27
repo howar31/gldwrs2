@@ -83,10 +83,12 @@ func TestAllCatalogResourcesFetch(t *testing.T) {
 			root.AddCommand(newDataCmd(app))
 
 			args := append([]string{"data"}, res.segments...)
-			isRecipesSearch := len(res.segments) == 2 && res.segments[0] == "recipes" && res.segments[1] == "search"
-			if isRecipesSearch {
+			switch name {
+			case "recipes search":
 				args = append(args, "--input", "1")
-			} else {
+			case "adventures leaderboards":
+				args = append(args, "1") // positional adventure id, not a by-ids leaf
+			default:
 				args = append(args, "--ids", "1")
 			}
 			root.SetArgs(args)
