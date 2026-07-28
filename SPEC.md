@@ -54,7 +54,7 @@ docs/superpowers/specs/2026-07-07-gw2-cli-design.md  # original design spec
 
 9 API-facing groups plus `auth` (key management, not an API endpoint) and `build` (a single meta command) — 11 top-level Cobra commands, each generating one `gw2-<name>` skill:
 
-- **`data`** (~64 endpoints, largest but cheapest) — static game catalogs (items, colors, recipes, skins, mounts, ...). One shared engine + a `catalogResources` registration table (`internal/commands/data.go`).
+- **`data`** (62 registered resources, largest but cheapest) — static game catalogs (items, colors, recipes, skins, mounts, ...). One shared engine + a `catalogResources` registration table (`internal/commands/data.go`). Includes three endpoints absent from the API's own `/v2` root listing but wiki-documented and live: `emblem foregrounds`/`emblem backgrounds` (the `/v2/emblem` path itself is only a placeholder naming them), bare `wizardsvault` (current season meta; parent of `listings`/`objectives`), and `continents floors <continent> [floor]` (a floor response embeds the whole nested regions/maps subtree, so one leaf covers the documented `/v2/continents/:id/floors/...` tree).
 - **`account`** (46 endpoints, auth) — account assets/unlocks (wallet, bank, materials, inventory, achievements, ...). Same registration-table shape as `data` (`accountResources`), a handful with bespoke `Concise()` renderers.
 - **`character`** (18 endpoints, auth) — `gw2 character <name> <subresource>`; `<name>` is the character's name (the API's own `:id`), no resolution needed.
 - **`commerce`** (5 endpoints, mixed auth) — trading post: `prices`, `listings` (public); `exchange` (gem↔coin, public); `transactions`, `delivery` (auth). Bespoke renderers (buy/sell spread; delivery items+coins).
@@ -70,9 +70,9 @@ Full endpoint-to-command mapping: the design spec §4, or `gw2 <group> --help` /
 
 ## Endpoint archetypes
 
-Coverage of 184 endpoints reduces to 5 structural archetypes (design spec §5):
+Coverage target is the full live `/v2` surface: the API's own root listing (~183 routes) **plus** wiki-documented endpoints the root listing omits (emblem layer catalogs, bare wizardsvault, the continents floors subtree) — the root listing alone is not a complete enumeration source. It reduces to 5 structural archetypes (design spec §5):
 
-1. **Catalog (~64)** — `newCatalogResourceCmd` (delegating to the shared `newByIDsListCmd`): enumerate ids → bulk-fetch-by-ids → optional `--lang`. One table row per endpoint.
+1. **Catalog (~65)** — `newCatalogResourceCmd` (delegating to the shared `newByIDsListCmd`): enumerate ids → bulk-fetch-by-ids → optional `--lang`. One table row per endpoint.
 2. **Account assets (46)** — same registration-table shape, ~6 bespoke renderers.
 3. **`:id`-parameterized** (characters 18, guild 12) — shared `<id-or-name>/<subresource>` positional dispatch + `resolve/` for name→id where the API needs a different id shape (guild GUID).
 4. **Domain endpoints with real rendering** (commerce 5, wvw 17, pvp 13, achievements 5 ≈ 40) — hand-written concise renderers and light logic; the bulk of genuine hand-authoring.

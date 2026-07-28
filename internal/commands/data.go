@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -78,7 +79,6 @@ var catalogResources = []catalogResource{
 	{segments: []string{"legendaryarmory"}, path: "/v2/legendaryarmory", localized: false, render: renderNamed},
 	{segments: []string{"files"}, path: "/v2/files", localized: false, render: nil},
 	{segments: []string{"logos"}, path: "/v2/logos", localized: false, render: nil},
-	{segments: []string{"emblem"}, path: "/v2/emblem", localized: false, render: renderNamed},
 	{segments: []string{"vendors"}, path: "/v2/vendors", localized: true, render: renderNamed},
 	{segments: []string{"events"}, path: "/v2/events", localized: true, render: renderNamed},
 	{segments: []string{"events-state"}, path: "/v2/events-state", localized: false, render: renderNamed},
@@ -86,10 +86,14 @@ var catalogResources = []catalogResource{
 	{segments: []string{"adventures"}, path: "/v2/adventures", localized: false, render: renderNamed},
 
 	// Nested resources. Order matters: a resource that is itself both an
-	// endpoint and a parent (stories, homestead decorations) must appear
-	// before its children so the tree builder finds it as an existing leaf
-	// to descend into, rather than creating a duplicate.
+	// endpoint and a parent (stories, homestead decorations, wizardsvault)
+	// must appear before its children so the tree builder finds it as an
+	// existing leaf to descend into, rather than creating a duplicate.
 	{segments: []string{"backstory", "answers"}, path: "/v2/backstory/answers", localized: true, render: renderNamed},
+	// /v2/emblem itself is only a placeholder listing its two child
+	// resource names; the data endpoints are the layer-image catalogs.
+	{segments: []string{"emblem", "foregrounds"}, path: "/v2/emblem/foregrounds", localized: false, render: renderEmblemLayers},
+	{segments: []string{"emblem", "backgrounds"}, path: "/v2/emblem/backgrounds", localized: false, render: renderEmblemLayers},
 	{segments: []string{"backstory", "questions"}, path: "/v2/backstory/questions", localized: true, render: renderNamed},
 	{segments: []string{"home", "cats"}, path: "/v2/home/cats", localized: true, render: renderNamed},
 	{segments: []string{"home", "nodes"}, path: "/v2/home/nodes", localized: true, render: renderNamed},
@@ -102,10 +106,18 @@ var catalogResources = []catalogResource{
 	{segments: []string{"mounts", "types"}, path: "/v2/mounts/types", localized: true, render: renderNamed},
 	{segments: []string{"stories"}, path: "/v2/stories", localized: true, render: renderNamed},
 	{segments: []string{"stories", "seasons"}, path: "/v2/stories/seasons", localized: true, render: renderNamed},
+	// Bare wizardsvault is the current season's meta object; absent from
+	// the API root listing but documented and live.
+	{segments: []string{"wizardsvault"}, path: "/v2/wizardsvault", localized: true, buildCmd: newWizardsVaultSeasonCmd},
 	{segments: []string{"wizardsvault", "listings"}, path: "/v2/wizardsvault/listings", localized: true, render: renderNamed},
 	{segments: []string{"wizardsvault", "objectives"}, path: "/v2/wizardsvault/objectives", localized: true, render: renderNamed},
 	{segments: []string{"recipes", "search"}, path: "/v2/recipes/search", localized: false, buildCmd: newRecipesSearchCmd},
 	{segments: []string{"adventures", "leaderboards"}, path: "/v2/adventures", localized: false, buildCmd: newAdventuresLeaderboardsCmd},
+	// The /v2/continents/:id/floors subtree is absent from the API root
+	// listing. A floor response embeds every nested region/map (with
+	// sectors, pois, tasks), so this single child covers the whole
+	// documented subtree without deeper subcommands.
+	{segments: []string{"continents", "floors"}, path: "/v2/continents", localized: true, buildCmd: newContinentsFloorsCmd},
 }
 
 func renderColors(items []json.RawMessage) string {
@@ -287,4 +299,136 @@ func newAdventuresLeaderboardsCmd(app *App, res catalogResource) *cobra.Command 
 			return output.Render(app.Out, raw, app.Mode, concise)
 		},
 	}
+}
+
+// renderEmblemLayers renders emblem foreground/background objects
+// ({id, layers: [image urls]}) as "id<TAB>N layers"; the urls themselves
+// are available via --raw / --json.
+func renderEmblemLayers(items []json.RawMessage) string {
+	var b strings.Builder
+	for _, it := range items {
+		var v struct {
+			ID     any      `json:"id"`
+			Layers []string `json:"layers"`
+		}
+		if err := json.Unmarshal(it, &v); err != nil {
+			continue
+		}
+		fmt.Fprintf(&b, "%s\t%d layers\n", fmt.Sprint(v.ID), len(v.Layers))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// newWizardsVaultSeasonCmd builds the bare `data wizardsvault` leaf:
+// GET /v2/wizardsvault returns the current season's meta (localized title,
+// start/end, listing and objective ids). This command is also the parent of
+// the listings/objectives leaves, which register after it.
+func newWizardsVaultSeasonCmd(app *App, res catalogResource) *cobra.Command {
+	return &cobra.Command{
+		Use:   "wizardsvault",
+		Short: "Current Wizard's Vault season, or a subresource",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			markCovered("data wizardsvault")
+			ctx := context.Background()
+			client, err := app.client()
+			if err != nil {
+				return err
+			}
+			raw, err := client.Get(ctx, res.path, nil)
+			if err != nil {
+				return err
+			}
+			concise := ""
+			if app.Mode == output.ModeConcise {
+				concise = renderVaultSeason(raw)
+			}
+			return output.Render(app.Out, raw, app.Mode, concise)
+		},
+	}
+}
+
+func renderVaultSeason(raw json.RawMessage) string {
+	var v struct {
+		Title      string            `json:"title"`
+		Start      string            `json:"start"`
+		End        string            `json:"end"`
+		Listings   []json.RawMessage `json:"listings"`
+		Objectives []json.RawMessage `json:"objectives"`
+	}
+	if err := json.Unmarshal(raw, &v); err != nil || v.Title == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s\t%s -> %s\t%d listings\t%d objectives",
+		v.Title, v.Start, v.End, len(v.Listings), len(v.Objectives))
+}
+
+// newContinentsFloorsCmd builds `data continents floors <continentId>
+// [<floorId>]`: with one arg it lists the continent's floor ids; with two
+// it fetches one floor object. Every user-supplied path segment is
+// path-escaped.
+func newContinentsFloorsCmd(app *App, res catalogResource) *cobra.Command {
+	return &cobra.Command{
+		Use:   "floors <continentId> [<floorId>]",
+		Short: "Continent floor ids, or one floor's full map data",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			markCovered("data continents floors")
+			ctx := context.Background()
+			client, err := app.client()
+			if err != nil {
+				return err
+			}
+			path := res.path + "/" + url.PathEscape(args[0]) + "/floors"
+			if len(args) == 2 {
+				path += "/" + url.PathEscape(args[1])
+			}
+			raw, err := client.Get(ctx, path, nil)
+			if err != nil {
+				return err
+			}
+			concise := ""
+			if app.Mode == output.ModeConcise {
+				if len(args) == 1 {
+					concise = conciseIDList(raw)
+				} else {
+					concise = renderFloor(raw)
+				}
+			}
+			return output.Render(app.Out, raw, app.Mode, concise)
+		},
+	}
+}
+
+// renderFloor summarizes a floor object (which embeds the full nested
+// regions/maps subtree) as one line per region, sorted by region id:
+// "regionId<TAB>name<TAB>N maps". The full data is available via --raw.
+func renderFloor(raw json.RawMessage) string {
+	var v struct {
+		Regions map[string]struct {
+			Name string                     `json:"name"`
+			Maps map[string]json.RawMessage `json:"maps"`
+		} `json:"regions"`
+	}
+	if err := json.Unmarshal(raw, &v); err != nil || len(v.Regions) == 0 {
+		return ""
+	}
+	ids := make([]string, 0, len(v.Regions))
+	for id := range v.Regions {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		a, aerr := strconv.Atoi(ids[i])
+		b, berr := strconv.Atoi(ids[j])
+		if aerr == nil && berr == nil {
+			return a < b
+		}
+		return ids[i] < ids[j]
+	})
+	var b strings.Builder
+	for _, id := range ids {
+		r := v.Regions[id]
+		fmt.Fprintf(&b, "%s\t%s\t%d maps\n", id, r.Name, len(r.Maps))
+	}
+	return strings.TrimRight(b.String(), "\n")
 }

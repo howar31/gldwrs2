@@ -25,6 +25,7 @@ Commands under `gw2 data`.
 - `gw2 data continents [flags]` — Fetch data continents
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data continents floors` — Continent floor ids, or one floor's full map data
 - `gw2 data currencies [flags]` — Fetch data currencies
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)
@@ -34,7 +35,10 @@ Commands under `gw2 data`.
 - `gw2 data dungeons [flags]` — Fetch data dungeons
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)
-- `gw2 data emblem [flags]` — Fetch data emblem
+- `gw2 data emblem backgrounds [flags]` — Fetch data emblem backgrounds
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data emblem foregrounds [flags]` — Fetch data emblem foregrounds
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)
 - `gw2 data emotes [flags]` — Fetch data emotes
@@ -172,6 +176,7 @@ Commands under `gw2 data`.
 - `gw2 data vendors [flags]` — Fetch data vendors
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data wizardsvault` — Current Wizard's Vault season, or a subresource
 - `gw2 data wizardsvault listings [flags]` — Fetch data wizardsvault listings
   - `--all` — fetch every entry (explicit; may be large)
   - `--ids <string>` — comma-separated ids (omit to list ids)
