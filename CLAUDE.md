@@ -27,7 +27,7 @@ goreleaser release --snapshot --clean       # local dry-run only, never plain `r
 - One file per command group under `internal/commands/`, paired `_test.go`; every leaf command must be exercised via `markCovered` — `zz_coverage_test.go` fails otherwise. Never filter `go test -run` to exclude `TestZZ...`.
 - Shared leaf shapes: `newByIDsListCmd`/`newSimpleGetRunE` (`leaf.go`) for the enumerate/by-ids and plain-GET patterns; `addToTree` (`tree.go`) for nested command-group registration from a flat resource table.
 - Authenticated leaves use `app.authedClient()` (errors up front if no key configured); public leaves use `app.client()` (anonymous is fine).
-- `VERSION` is the version SSOT (embedded via `go:embed` in `version.go`). Keep `npm/package.json`'s `version` and any future release tooling in sync with it.
+- `VERSION` is the version SSOT (embedded via `go:embed` in `version.go`). `npm/package.json` stays at the `0.0.0` placeholder — the release workflow stamps the real version at publish time (`npm version` errors on a same-version stamp, so never pre-sync it; CI enforces the placeholder).
 - Regenerate `skills/` (`gw2 generate-skills`) after adding/removing a command or changing flags — output is deterministic, so drift is mechanically detectable.
 - Read-only API: no `--dry-run`/write-CAUTION machinery exists or is needed — every command is a GET.
 

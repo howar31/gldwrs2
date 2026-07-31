@@ -1,7 +1,7 @@
 {
   "name": "@howar31/gw2",
   "description": "Read-only Guild Wars 2 API command-line client.",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "license": "MIT",
   "author": "Howar31",
   "repository": {
