@@ -68,15 +68,17 @@ jobs:
           fi
 
   version-sync:
-    name: Verify npm package version tracks VERSION
+    name: Verify npm package version placeholder
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Compare npm/package.json version with VERSION
+      - name: Check npm/package.json holds the 0.0.0 placeholder
         run: |
-          version="$(cat VERSION)"
+          # The release workflow stamps the real version at publish time via
+          # `npm version <VERSION>`, which errors on a same-version stamp, so
+          # the committed package.json must stay at the 0.0.0 placeholder.
           npm_version="$(node -p "require('./npm/package.json').version")"
-          if [ "${version}" != "${npm_version}" ]; then
-            echo "::error::npm/package.json version (${npm_version}) does not match VERSION (${version}) — keep them in sync."
+          if [ "${npm_version}" != "0.0.0" ]; then
+            echo "::error::npm/package.json version is ${npm_version}; it must stay at the 0.0.0 placeholder — the release workflow stamps the real version at publish."
             exit 1
           fi
