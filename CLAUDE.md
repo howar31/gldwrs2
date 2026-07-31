@@ -28,7 +28,8 @@ goreleaser release --snapshot --clean       # local dry-run only, never plain `r
 - Shared leaf shapes: `newByIDsListCmd`/`newSimpleGetRunE` (`leaf.go`) for the enumerate/by-ids and plain-GET patterns; `addToTree` (`tree.go`) for nested command-group registration from a flat resource table.
 - Authenticated leaves use `app.authedClient()` (errors up front if no key configured); public leaves use `app.client()` (anonymous is fine).
 - `VERSION` is the version SSOT (embedded via `go:embed` in `version.go`). `npm/package.json` stays at the `0.0.0` placeholder — the release workflow stamps the real version at publish time (`npm version` errors on a same-version stamp, so never pre-sync it; CI enforces the placeholder).
-- Regenerate `skills/` (`gw2 generate-skills`) after adding/removing a command or changing flags — output is deterministic, so drift is mechanically detectable.
+- Regenerate `skills/` (`gw2 generate-skills`) after adding/removing a command or changing flags — output is deterministic, so drift is mechanically detectable. A VERSION bump also changes `skills/` (the version is embedded in skill headers), so a `chore(release)` commit must carry the regenerated tree; CI's drift check enforces both cases.
+- Landing flow: `main` is ruleset-protected (PRs only, no force push, no bypass). Day-to-day changes go through squash-merge PRs; releases are a `chore(release): x.y.z` PR (VERSION bump + regenerated skills) whose merge triggers the VERSION-driven release workflow (tag, GitHub Release, Homebrew cask, npm).
 - Read-only API: no `--dry-run`/write-CAUTION machinery exists or is needed — every command is a GET.
 
 ## Distribution guardrails
