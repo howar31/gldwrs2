@@ -1,0 +1,193 @@
+---
+name: gw2-data
+description: "Static game data (items, colors, recipes, ...)"
+---
+
+# gw2-data
+
+Commands under `gw2 data`.
+
+## Commands
+
+- `gw2 data adventures [flags]` — Fetch data adventures
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data adventures leaderboards` — Adventure leaderboard boards, or one board's standings
+- `gw2 data backstory answers [flags]` — Fetch data backstory answers
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data backstory questions [flags]` — Fetch data backstory questions
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data colors [flags]` — Fetch data colors
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data continents [flags]` — Fetch data continents
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data continents floors` — Continent floor ids, or one floor's full map data
+- `gw2 data currencies [flags]` — Fetch data currencies
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data dailycrafting [flags]` — Fetch data dailycrafting
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data dungeons [flags]` — Fetch data dungeons
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data emblem backgrounds [flags]` — Fetch data emblem backgrounds
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data emblem foregrounds [flags]` — Fetch data emblem foregrounds
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data emotes [flags]` — Fetch data emotes
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data events [flags]` — Fetch data events
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data events-state [flags]` — Fetch data events-state
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data files [flags]` — Fetch data files
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data finishers [flags]` — Fetch data finishers
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data gemstore-catalog [flags]` — Fetch data gemstore-catalog
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data gliders [flags]` — Fetch data gliders
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data home cats [flags]` — Fetch data home cats
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data home nodes [flags]` — Fetch data home nodes
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data homestead decorations [flags]` — Fetch data homestead decorations
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data homestead decorations categories [flags]` — Fetch data homestead decorations categories
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data homestead glyphs [flags]` — Fetch data homestead glyphs
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data items [flags]` — Fetch data items
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data itemstats [flags]` — Fetch data itemstats
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data jadebots [flags]` — Fetch data jadebots
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data legendaryarmory [flags]` — Fetch data legendaryarmory
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data legends [flags]` — Fetch data legends
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data logos [flags]` — Fetch data logos
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data mailcarriers [flags]` — Fetch data mailcarriers
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data mapchests [flags]` — Fetch data mapchests
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data maps [flags]` — Fetch data maps
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data masteries [flags]` — Fetch data masteries
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data materials [flags]` — Fetch data materials
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data minis [flags]` — Fetch data minis
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data mounts skins [flags]` — Fetch data mounts skins
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data mounts types [flags]` — Fetch data mounts types
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data novelties [flags]` — Fetch data novelties
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data outfits [flags]` — Fetch data outfits
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data pets [flags]` — Fetch data pets
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data professions [flags]` — Fetch data professions
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data quaggans [flags]` — Fetch data quaggans
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data quests [flags]` — Fetch data quests
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data races [flags]` — Fetch data races
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data raids [flags]` — Fetch data raids
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data recipes [flags]` — Fetch data recipes
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data recipes search [flags]` — Search recipes by input or output item id
+  - `--input <int>` — filter recipes producible from this item id
+  - `--output <int>` — filter recipes that produce this item id
+- `gw2 data skiffs [flags]` — Fetch data skiffs
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data skills [flags]` — Fetch data skills
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data skins [flags]` — Fetch data skins
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data specializations [flags]` — Fetch data specializations
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data stories [flags]` — Fetch data stories
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data stories seasons [flags]` — Fetch data stories seasons
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data titles [flags]` — Fetch data titles
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data traits [flags]` — Fetch data traits
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data vendors [flags]` — Fetch data vendors
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data wizardsvault` — Current Wizard's Vault season, or a subresource
+- `gw2 data wizardsvault listings [flags]` — Fetch data wizardsvault listings
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data wizardsvault objectives [flags]` — Fetch data wizardsvault objectives
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data worldbosses [flags]` — Fetch data worldbosses
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+- `gw2 data worlds [flags]` — Fetch data worlds
+  - `--all` — fetch every entry (explicit; may be large)
+  - `--ids <string>` — comma-separated ids (omit to list ids)
+
+See `gw2-shared` for auth setup and global flags.
