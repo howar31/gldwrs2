@@ -3,7 +3,7 @@ name: gw2
 description: "Guild Wars 2 API CLI — read-only client for accounts, trading post, WvW, PvP, guilds, and game data. Index of gw2-* skills."
 ---
 
-# gw2 (v0.1.0)
+# gw2 (v0.1.1)
 
 Guild Wars 2 API CLI: a read-only command-line client for the official GW2
 API, covering account assets and unlocks, characters, the trading post,
