@@ -3,7 +3,7 @@ name: gw2-shared
 description: "Shared gw2 CLI conventions: auth, global flags, output modes, exit codes."
 ---
 
-# gw2-shared (v0.1.0)
+# gw2-shared (v0.1.1)
 
 Conventions shared by every gw2 command.
 
