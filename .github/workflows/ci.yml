@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          check-latest: true
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./...
+      - name: Test
+        run: go test ./...
+      - name: Validate goreleaser config
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: check
+
+  skill:
+    name: Verify skills are up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          check-latest: true
+      - name: Regenerate skills
+        run: go run ./cmd/gw2 generate-skills
+      - name: Fail on drift
+        run: |
+          git add -A skills/
+          if ! git diff --cached --exit-code skills/; then
+            echo "::error::skills/ is out of date — run 'go run ./cmd/gw2 generate-skills' and commit."
+            exit 1
+          fi
+
+  version-sync:
+    name: Verify npm package version tracks VERSION
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Compare npm/package.json version with VERSION
+        run: |
+          version="$(cat VERSION)"
+          npm_version="$(node -p "require('./npm/package.json').version")"
+          if [ "${version}" != "${npm_version}" ]; then
+            echo "::error::npm/package.json version (${npm_version}) does not match VERSION (${version}) — keep them in sync."
+            exit 1
+          fi

@@ -1,0 +1,118 @@
+name: Release
+
+# Release is driven by the committed VERSION file (single source of truth), not
+# by manually pushing a tag. When VERSION changes on main, the gate job decides
+# whether that version still needs releasing; if so, the goreleaser job creates
+# the matching `v<VERSION>` tag and runs the release in the same run. The tag is
+# an artifact of the release, not its trigger.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'VERSION'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: check
+        name: Decide whether the current VERSION needs releasing
+        run: |
+          version="$(cat VERSION)"
+          tag="v${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag ${tag} already exists — nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag ${tag} does not exist — releasing ${version}."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  goreleaser:
+    needs: gate
+    if: ${{ needs.gate.outputs.release == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Create and push the release tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          tag="${{ needs.gate.outputs.tag }}"
+          # Idempotent for job reruns: the tag may already exist from a
+          # previous partially-failed attempt of this same run.
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag ${tag} already exists on origin - reusing it."
+            git fetch origin "refs/tags/${tag}:refs/tags/${tag}"
+          else
+            git tag "${tag}"
+            git push origin "${tag}"
+          fi
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          check-latest: true
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ needs.gate.outputs.tag }}
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: 'dist/*.tar.gz'
+
+  publish-npm:
+    needs: [gate, goreleaser]
+    if: ${{ needs.gate.outputs.release == 'true' && !contains(needs.gate.outputs.version, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Sync npm version with VERSION
+        working-directory: npm
+        run: npm version "${{ needs.gate.outputs.version }}" --no-git-tag-version
+      - name: Publish to npm
+        working-directory: npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+      - name: Smoke test packed package
+        working-directory: npm
+        run: |
+          VER="${{ needs.gate.outputs.version }}"
+          # Install the locally packed wrapper rather than pulling the just-
+          # published version from the npm registry: newly published scoped
+          # versions can take minutes to become resolvable, which would falsely
+          # fail an otherwise-successful release. The packed tarball exercises
+          # the same path — postinstall downloads the binary from the already-
+          # published GitHub release and verifies its checksum.
+          TGZ="$(npm pack | tail -1)"
+          mkdir /tmp/gw2-smoke && cd /tmp/gw2-smoke
+          npm init -y >/dev/null
+          npm install --no-save "$GITHUB_WORKSPACE/npm/$TGZ"
+          ./node_modules/.bin/gw2 --version | grep -F "gw2 ${VER}"
